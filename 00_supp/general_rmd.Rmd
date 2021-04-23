@@ -1,5 +1,4 @@
 ---
-output: html_document
 ---
 
 \newcommand{\bf}[1]{\boldsymbol{#1}}

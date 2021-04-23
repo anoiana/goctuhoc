@@ -30,10 +30,8 @@ fontsize: 12pt
 bibliography: ["citation.bib"]
 csl: "../00_supp/apa.csl"
 link-citations: true
-editor_options: 
-  chunk_output_type: console
-  markdown: 
-    wrap: 72
+params:
+  publish: FALSE
 ---
 
 \newcommand{\scr}[1]{\mathscr{#1}}
@@ -54,6 +52,15 @@ editor_options:
 ```
 
 ```{r  child="../00_supp/general_rmd.Rmd"}
+```
+
+```{r, eval=params$publish, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
+file_name = stringr::str_replace(knitr::current_input(),"Rmd$","html")
+if(file.exists(paste0("../docs/",file_name))){
+  file.copy(file_name, "../docs", overwrite  = TRUE)
+} else{
+      file.copy(file_name, "../docs")
+  }
 ```
 
 ::: {.watermark}
