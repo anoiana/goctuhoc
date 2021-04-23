@@ -40,8 +40,8 @@ params:
 #TOC::before {
   content: "";
   display: block;
-  height: 100px;
-  margin: 2.75em 15px 40px 15px;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
   background-image: url("km.png");
   background-size: contain;
   background-position: center center;
