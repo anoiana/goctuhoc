@@ -1,0 +1,107 @@
+---
+title: "&#128205; Sử Dụng Lasso Chọn Lọc Biến Độc Lập Và Tiến Hành MAIC"
+author: 👦🏻 _An_
+date: "&#x1F4C5; _`r {
+if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
+update=FALSE
+filename=knitr::current_input(dir = FALSE)
+mylist <- readRDS(file ='date_list.rds')
+if(update|!(filename%in%names(mylist))){
+mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
+saveRDS(mylist, file = 'date_list.rds')}
+readRDS(file ='date_list.rds')[[filename]]  }`_"
+header-includes:
+   - \usepackage{amsmath}
+   - \usepackage{titling}
+   - \pretitle{\begin{flushleft}}
+   - \posttitle{\end{flushleft}}
+   - \usepackage{eso-pic,graphicx,transparent}
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: 72
+---
+
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("itc.jpg");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+```{r  child="../00_supp/general_rmd.Rmd"}
+```
+
+::: {.watermark}
+*DRAFT*
+:::
+
+# Giới thiệu
+
+Lasso là một trong những phương pháp đươc sử dụng khá phổ biến để chọn
+ra các biến độc lập có mối tương phan với biến phụ thuộc. Bằng cách thêm
+vào hàm likelihood một nhân tố nhằm kéo các tham số về gần 0. Như vậy
+nếu như ước lượng của tham số của biến độc lập nào mang giá trị 0 hay
+gần 0, thì biến độc lập đó đươc xem là không có mối tương quan, hoặc có
+nhưng thấp, với biến phụ thuộc. Chọn ra các biến có mối quan hệ tương
+quan với biến phụ thuộc đóng vai trò quan trọng trong nhiều phân tích
+thống kê, mà bước one-to-one và scenario trong MAIC là một trong số đó.
+Bài này hướng dẫn ta cách sử dụng lasso để chọn ra các biến có giá trị,
+và sử dụng cách biến này để tiến hành cân bằng và so sánh hai nhóm điều
+trị trong hai nghiên cứu riêng biệt.
+
+# Nhắc lại lý thuyết
+
+## Matching adjusted indirect comparison (MAIC)
+
+MAIC là một phương nhằm so sánh gián tiếp hai nhóm điều trị từ hai
+nghiên cứu riêng biệt. So sánh này thường được tiến hành khi ta không có
+số liệu trực tiếp của một trong hai nhóm điều trị . Ví dụ trong nghiên
+cứu thứ I, hai nhóm điều trị A và B được tiến hành so sánh trực tiếp.
+Trong nghiên cứu thứ 2, hai nhóm điều trị B và C cũng được so sánh trực
+tiếp. Tuy nhiên ta chỉ có số liệu của nghiên cứu I, số liệu này bao gôm
+tất cả các thông tin của từng bệnh nhân tham gia nghiên cứu, bao gồm các
+biến độc lập, phụ thuộc và một biến chỉ thị nhóm điều trị. Đối với loại
+số liệu này ta gọi là IPD (individual patient data). Với nghiên cứu thứ
+II, ta chỉ có thể tìm kiếm các số liệu tóm tắc thống kê của các biến kể
+trên nhưng sẽ không tìm được số liệu đầy đủ của từng bệnh nhân. Loại số
+liệu này gọi là SLD (summary level data).
+
+Ta hãy định nghĩa lại các mô tả trên bằng công thức toán học như sau:
+
+1.  Nghiên cứu I: ta có $\{y_i,\bf{x}_i, t_i\}_{i=1}^n$, trong đó $y_i$
+    là endpoint của bệnh nhân $i^{th}$, $\bf{x}_i$ là giá trị của các
+    covariates của bệnh nhân $i^{th}$ và $t_i$ là biến treatment cho
+    biết bệnh nhân $i^{th}$ thuộc nhóm treatment hay nhóm control.
+2.  Nghiên cứu II: ta chỉ có $d,l,u,\bar{\bf{x}}$, trong đó $d$
+
+<!-- ############################################################################## -->
+
+# 📝 ***References*** {.unnumbered}

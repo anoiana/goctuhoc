@@ -1,0 +1,403 @@
+---
+title: "📍 Multiple Hypothesis Testing"
+author: 👦 $\mathcal{A.T}$
+date: "📅 `r format(Sys.Date(), format = '%B %d, %Y')`"
+header-includes:
+   - \usepackage{amsmath}
+   - \usepackage{titling}
+   - \pretitle{\begin{flushleft}}
+   - \posttitle{\end{flushleft}}
+   - \usepackage{eso-pic,graphicx,transparent}
+abstract: Trong clinical trials, rất thường xuyên ta phải thực hiện cùng lúc nhiều kiểm định. Cứ mỗi một kiểm định cho phép khả năng sai lên đến $\alpha$ (thường chọn $\alpha =0.05$ hay $0.1$). Nhưng nếu phải thực hiện các kiểm định cùng với nhau,  việc xem xét và đánh giá từng kiểm định riêng lẻ với mức độ sai chấp nhận cho mỗi kiểm định $\alpha$ thì kết quả cuối cùng không đáng tin cậy. bài này sẽ đưa ra các phương pháp giúp ta điều chỉnh mức độ sai $\alpha$ khi ta thực hiện nhiều kiểm định cùng lúc. 
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: readable
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("ht.png");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+
+```{r child="../00_supp/general_rmd.Rmd"}
+```
+
+# Introduction 
+
+Khi ta phân tích các genomic data, rất thường xuyên ta phải thực hiện nhiều kiểm định cùng lúc cho từng gene, và thường số lượng genes cần được kiểm định lên tới hàng nghìn. Trong trường hợp này, việc xem xét các kiểm định riêng lẻ dường như không thỏa đáng. Ta hãy lấy một ví dụ để minh họa cho vấn đề này, giả sử ta được yêu cầu thực hiện $m$ kiểm định. Mỗi một kiểm định ta có 2 kết luận, hoặc là "reject" hoặc là "fail to reject". Như vậy ta có thể tóm tắc các khả năng xảy ra trong một bản như sau 
+
+```{r  tab1, echo = F, results='asis', fig.cap="_contigency table of $m$ hypothesis test_"}
+tibble(
+  ` ` = c("$$H_o~~~true$$","$$H_o~~~false$$", "total"),
+  `not significant` = c("U","T","m-R"),
+  `significant` = c("V","S","R"),
+  `  ` = c("$$m_o$$","$$m_1$$","m")
+)%>% draw_table()
+```
+
+Nếu $V$ là số kiểm định bị rejected sai (false positive hay lỗi loại I), ta có 
+
+$$
+\begin{split}
+\P(V\ge 1) &= 1 - \P(V=0) \\
+&= 1 - \prod_{i=1}^m\P(\text{"kiểm định thứ i không bị lỗi"}) \\
+&= 1 - \prod_{i=1}^n(1-\alpha)\\
+&= 1 - (1- \alpha)^m
+\end{split}
+$$
+nếu ta chọn $\alpha = 0.05$ và khi số lượng kiểm định tăng dần ta thấy sự biến đổi của false positive như trong hình 
+
+```{r, echo=F}
+tibble(m = seq(1,50, length.out = 10)%>% round())%>%
+  mutate("$$P(V \\ge1)$$" = 1-(1-0.05)^m)%>%
+  modify_at(.at = 2, anh$cp(~round(.,3)))%>%
+  draw_table()
+
+```
+
+Rõ ràng, $m$ càng lớn thì khả năng phát sinh false positive càng lớn, nghĩa là lỗi loại I càng nhiều. Như vậy, ta cần phải điểu chỉnh sao cho khả năng false positive trở về mức $\alpha$. Nói cách khác ta muốn  
+
+$$
+\text{tốc độ lỗi} = \P(\text{false rejection of }H_o) \le \alpha
+$$
+Biểu thức trên được gọi là _family-wise error rate_. Như vậy ta muốn $FWER \le \alpha$.
+
+Có khá nhiều phương pháp giúp ta điều chỉnh FWER, tuy nhiên trong giới hạn bài này ta sẽ làm quen với 2 trong số những phương pháp được sử dụng nhiều để điều chỉnh FWER đó là
+
+1. Phương pháp Single-step
+2. Phương pháp Stepwise (bao gồm step-down và step-up)
+
+# Sử dụng Single-step để điều chỉnh FWER
+
+Hai phương pháp thuộc nhóm điều chỉnh này chính là Dunn-Sidak và Bonferroni.
+
+## Dunn-Sidak 
+
+Già sử $\alpha_i = \alpha_d$ cho từng kiểm định riêng lẻ, ta muốn tìm $\alpha_i$ sao cho $FWER \approx \alpha$. Nếu ta có 
+
+$$
+\alpha = 1-(1-\alpha_d)^m
+$$
+
+thì 
+
+$$
+\alpha_d = 1- (1-\alpha)^{1/m}
+$$
+
+dễ thấy rằng
+
+$$
+\P(V\ge1)  = 1-(1-\alpha_d)^m = 1 - [1- 1+(1-\alpha)^{1/m}]^{m} = \alpha
+$$
+
+## Bonferroni
+
+Ta cũng giả sử rằng có $m$ kiểm định $H_{oi}$, mỗi kiểm định sẽ bị loại khi $p_i\le \alpha/m$. Như vậy, Bonferroni và Dunn-Sidak có mối quan hệ tuyến tính (linearly) bởi vì  
+
+$$
+\begin{split}
+(1-\alpha)^{1/m} &\stackrel{taylor}{=} 1 - \frac{\alpha}{m} + \frac{(1/m)[(1/m) -1]}{2}\alpha^2+ \dots\\
+& \approx 1- \frac{\alpha}{m}
+\end{split}
+$$
+
+Ví dụ cho $m = 10, \alpha = 0.05$ ta tính được $\alpha_d  = 0.0051162$ và $\alpha/m = 0.005$.
+
+# Sử dụng Stepwise để điều chỉnh FWER
+
+Cũng có 2 phương pháp thuộc nhóm stepwise được xem xét là _Holm_ và _Hochberg_.
+
+## Phương pháp Holm
+
+Lưu ý rằng cả Bonferroni và Dunn-Sidak chỉ tập trung điều chỉnh $\alpha$ cho từng kiểm định độc lập, vì thế khả năng phát hiện false positive của 2 phương pháp này rất thấp một khi số kiểm định tăng dần. Để giải quyết vấn đề này ta có thể sử dụng phương pháp Holm. Phương pháp Holm giúp tăng độ nhạy trong việc phát hiện false positive mà vẫn giữ nguyên FWER. 
+
+Lấy $\{p_i:i=1,\dots,m\}$ là p-value của các kiểm định ta cần xem xét, mỗi cái tương ứng với $H_{01},\dots,H_{0m}$. Phương pháp Holm sẽ được tiến hành như sau
+
+1. Xếp thứ tự các p-values. Ta ký hiệu $\{p_{(i)}:i=1,\dots,m\}$ là tập hợp các p.values đã được xếp thứ tự.
+2. Ta lần lượt kiểm định $p_{(1)}, p_{(2)}, \dots, p_{(m)}$ với $\frac{\alpha}{m}, \frac{\alpha}{m-1}, \dots,$ Giá trị p-value nhỏ thứ $i$ sẽ được đánh giá với $\frac{\alpha}{m-i+1}$. Quá trình này được thực hiện cho đến khi ta tìm được kết quả fail to reject đầu tiên, nghĩa là $p_{(j)} > \frac{\alpha}{m-j+1}$.
+3. Kết luận rằng những kiểm định trước kiệm định bị fail to reject đầu tiên chính là các kiểm định có ý nghĩa thống kê, từ kiểm định hiện tại trở về sau sẽ không có ý nghĩa. 
+
+
+Ví dụ ta xem xét p-value của 16 kiểm định như hình 
+
+```{r}
+d = read.csv("p-val.csv")%>% 
+  mutate(type = paste("outcome",1:n()))%>%
+  rename(p = maic_p_val)
+
+modify_if(d, is.numeric, round, digits = 3)%>%
+  draw_table()
+```
+
+sử dụng phương pháp Holm cho data trên ta được 
+
+```{r}
+d%>%
+  arrange(p)%>%
+  mutate(holm = p*c(16:1) )%>%
+  mutate(holm = ifelse(holm>1,1,holm))%>%
+  filter(holm<=0.05)%>%
+  modify_if(is.numeric, round, digits = 3)%>%
+  draw_table()
+```
+ta reject 2 kiểm định 2 và 12. 
+
+Ngoài ra ta có thể dùng hàm R có sẵn để điều chỉnh các p.value
+
+```{r}
+d<-
+reduce2(
+  list("bonferroni","holm"),
+  list("bonferroni","holm"), 
+  function(x,y,z) mutate(x,  {{z}} :=  p.adjust(x$p,y) ),
+  .init = d)%>%
+  arrange(p)
+
+draw_table(modify_if(d,is.numeric,round,digits = 3))
+```
+
+ta thu được kết quả tương tự. 
+
+Ngoài ra ta cũng có thể vẽ biểu đồ để minh họa cho kết quả bằng cách 
+
+- xếp các p.value theo thứ tự tăng dần.
+- vẽ biểu đồ điểm với trục ox là $1/(m-j+1)$ và oy là các p.value. 
+- Vẽ đường thẳng đi qua giao điểm O và có giá trị slope là $\alpha$.
+
+```{r}
+d.g<-
+d%>%
+  mutate(frac = 1/(n() - rank(p)+1))%>%
+  mutate(adj.p = ifelse(1/frac*p>=1,1,p/frac))%>%
+  mutate(decision = ifelse(p<0.05*frac,"reject"," fail to reject"))%>%
+  arrange(p)
+
+
+ggplot(d.g, aes(x = frac,y = p, color = decision))+
+  geom_point()+
+  geom_abline(slope = 0.05, intercept = 0)
+```
+
+Ta thấy rằng các p-value nằm bên dưới đường thằng chính là các kiểm định có ý nghĩa thống kê. 
+
+Ngoài ra ta có thể chứng minh được rằng phương pháp Holm thỏa mãn điều kiện $FWER \le \alpha$. Nếu $V$ là số reject bị sai, ta sử dụng bất đẳng thức Markovs và được kết quả như sau
+
+$$
+\begin{split}
+\P(V\ge1) \le \E(V) &= \E\big[\sum_{i \in m_0}\I(p_i \le \alpha/m) \big] \\
+&= \sum_{i \in m_0}\P(p_i \le \alpha/m) \\
+&\le \sum_{i \in m_0}\frac{\alpha}{m}\\
+&= \frac{\alpha}{m}m_0 \\
+& \le \frac{\alpha}{m}m = \alpha
+\end{split}
+$$
+
+## Hochberg Procedure
+
+Phương pháp này được tiến hành ngược lại với Holm. Ta sẽ bắt đầu bằng kiểm định có p.value ít ý nghĩa thống kê nhất, lần lượt thực hiện kiểm định bằng cách so sánh với $\alpha, \alpha/2, \alpha/3,\dots$ cho đến khi ta tìm được giá trị có ý nghĩa thống kê đầu tiên. Ta kết luận rằng những kiểm định tương ứng với các p.value còn lại có ý nghĩa thống kê. trong thực hành, phương pháp này tỏ ra khá hiệu quả so với Holm. Cả 2 phương pháp có thể không mang lại cùng 1 vị trí dừng. 
+
+Nhắc lại rằng một khi số lượng kiểm định tăng thì các phương pháp điều chỉnh FWER sẽ không còn nhạy để phát hiện các false positive. Như vậy, một "idea" mới được hình thành nhằm giải quyết vấn đề còn lại đó là _False Discovery Rate_.
+
+# False Discovery Rate (FDR)
+
+Khi ta điều chỉnh FWER, ta thường thấy rằng giá trị $\alpha$ sau điều chỉnh vẫn rất nhỏ, điều này làm cho khả năng phát hiện false positive trở nên yếu hơn. Và ta thường sẽ fail to reject cả giả thuyết $H_o$ đúng và giả thuyết $H_o$ sai. Vì thế ta cần phải xem xét và điều chỉnh số lượng kiểm định bị rejected sai trên tổng số các kiểm định đã bị rejected. "idea" này khác với idea của FWER, trong khi điều chỉnh FWER ta sẽ quan tâm tới số lượng kiểm định bị reject sai trên tổng số các kiểm định, trong khi điều chỉnh FDR chính là 
+
+
+$$
+FDR = \cases{\E(\frac{V}{R}) = \frac{\text{Number of false rejections}}{\text{total number of rejections}}, R> 0 \\
+0, R=0},
+$$
+Với FDR ta sẽ reject nhiều false positive hơn. Ngoài ra ta cũng có thể chứng minh được mối quan hệ của FWER và FDR. Ta chia làm 2 trường hợp như sau: 
+
+__Case 1: khi $V=R$__, theo định nghĩa ta có 
+
+$$
+\frac{V}{R} = \cases{
+0, \text{ if } V = 0\\
+1 \text{ if } V\ge 1
+}
+$$
+như vậy
+
+$$
+\begin{split}
+FDR = \E(V/R) &= \E(V/R|V=0)\P(V=0) + \E(V/R|V\ge 1)\P(V\ge 1)\\
+&= 0\P(V=0) + 1\P(V \ge 1)\\
+&=\P(V \ge 1) \\
+&= FWER
+\end{split}
+$$
+
+__Case 2: $V< R$__
+
+$$
+\begin{split}
+FDR = \E(V/R) &= \E(V/R|V \ge 1)\P(V \ge 1) + \E(V/R|V=0)\P(V=0) \\
+&= \E(V/R|V \ge1)\P(V \ge 1)+0 \\
+&< 1.\P(V \ge 1) \\
+&= FWER
+\end{split}
+$$
+
+Vì $FDR \le FWER$ nên độ nhạy của FDR trong việc phá hiện false positive luôn cao hơn. 
+
+Một trong những phương pháp cho phép điều chỉnh FDR là _Benjamini and Hochberg_ (BH). Phương pháp được tiến hành như sau
+
+1. Sắp xếp các p-values từ nhỏ tới lớn, ta có $p_{(1)} \le p_{(1)} \le \dots \le p_{(m)}$
+2. cho mỗi giá trị $j = m, \dots, 1:$ ta kiểm định
+   - If $p_{(j)} \ge \frac{j}{m}\alpha$, fail to reject $H_{0j}$ and continue
+   - Otherwise, reject $H_{0(j)},\dots,H_{0(1)}$.
+   
+Sử dụng cùng một số liệu như trên ta có
+   
+```{r}
+
+mutate(d,p.adj = p*n()/rank(p))%>%
+  filter(p.adj<=0.05)%>%
+  select(type, p.adj)%>%
+  modify_if(is.numeric, round, digits = 3)%>%
+  draw_table()
+```
+
+```{r}
+d%<>%
+  mutate(BH = p.adjust(p,"BH"))
+
+draw_table(modify_if(d,is.numeric, round, digits = 3))
+
+mutate(d, decision = ifelse(BH<=0.05,"reject"," fail to reject"), x = (1:n())/n() )%>%
+  ggplot(aes(x =x , y = p, color = decision ))+
+  geom_point()+
+  geom_abline(slope = 0.05, intercept = 0)
+
+```
+
+Kết quả tương tự. 
+
+Ta có thể đưa ra vài nhận xét như sau
+
+- Bởi vì ta điều chỉnh FDR tại 0.05 nên ta có thể kết luận rằng trung bình thì 5% trong số 2 kiểm định bị rejected sẽ được thực hiện sai $0.05*2 = 0.1$. 
+
+- Using Bonferroni method we will obtain 2 rejected hypotheses as follows
+- Nếu ta chọn $\alpha =0.1$ thì phương pháp BH cho 3 kiểm định bị rejected, trong khi những phương pháp điều chỉnh FWER thì cho 2 kiểm định bị rejected. Như vậy rõ ràng FDR nhạy hơn so với FWER (xem hình dưới)
+
+```{r, echo=F}
+draw_table(d%>% modify_if(is.numeric,round, digits = 3))
+```
+
+# Kết luận
+
+- Với FWER, Phương pháp stepwise trả lại các giá trị adjusted p-values nhõ hơn so với single-step. Nghĩa là stepwise có độ nhạy tốt hơn single step trong việc phát hiện false positive.  Cụng chú ý rằng càng nhiều kiểm định thì độ nhạy càng giảm.
+- Với FDR, Ta fail to reject càng nhiều null hypothesis thì độ nhạy càng giảm. 
+- Ta có thể điều chỉnh để cải tiến độ nhạy nhưng một khi số lượng kiểm định không có ý nghĩa càng nhiều thì khả năng cải tiến càng thấp. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ################################################################################################### -->
+<!-- :::: {.blackbox data-latex=""} -->
+<!-- ::: {.center data-latex=""} -->
+<!-- **Proof:** -->
+<!-- ::: -->
+<!-- over here -->
+<!-- :::: -->
+
+<!-- notation on equal sign -->
+<!-- \stackrel{}{} -->

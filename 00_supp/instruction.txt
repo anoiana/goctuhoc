@@ -1,0 +1,41 @@
+1. add favicon 
+
+ - create html file with one line :   <link rel="icon" type="image/png" href="favicon.ico"/>
+ - add includes:
+          in_header: header.html 
+
+
+2. add customized block 
+
+:::: {.blackbox data-latex=""}
+::: {.center data-latex=""}
+**Proof:**
+:::
+over here
+::::
+
+
+3. add draft water
+
+```{css, echo = F}
+.watermark {
+  opacity: 0.1;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  font-size: 500%;
+  color: #7d0040;
+}
+
+.scroll-100 {
+  max-height: 100px;
+  overflow-y: auto;
+  background-color: inherit;
+}
+```
+::: {.watermark} 
+_DRAFT_
+:::
+
+notation on equal sign
+\stackrel{}{}

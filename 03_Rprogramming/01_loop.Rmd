@@ -1,0 +1,445 @@
+---
+title: "📍Cấu trúc dữ liệu trong R và vòng lặp"
+subtitle: "R Programming"
+author: 👦 $\mathcal{An}$
+date: "📅`r format(Sys.Date(), format = '%B %d, %Y')`"
+header-includes:
+   - \usepackage{amsmath}
+   - \usepackage{titling}
+   - \pretitle{\begin{flushleft}}
+   - \posttitle{\end{flushleft}}
+   - \usepackage{eso-pic,graphicx,transparent}
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: "tango"
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      css: "../00_supp/style.css"
+      number_sections: yes
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+---
+
+\newcommand{\bf}[1]{\boldsymbol{#1}}
+\newcommand{\hat}[1]{\widehat{#1}}
+\newcommand{\mm}[1]{\mathbb{#1}}
+\newcommand{\bar}[1]{\overline{#1}}
+\def\E{\mathbb{E}}
+\def\V{\mathbb{V}}
+\def\P{\mathbb{P}}
+\def\I{\mathbb{I}}
+\def\indep{\perp\!\!\!\!\perp}
+
+```{css, echo = F}
+.watermark {
+  opacity: 0.1;
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  font-size: 500%;
+  color: #7d0040;
+}
+
+.scroll-100 {
+  max-height: 100px;
+  overflow-y: auto;
+  background-color: inherit;
+}
+
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("r.jpg");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+::: {.watermark} 
+_DRAFT_
+:::
+ 
+
+```{r setup, include=FALSE, message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = TRUE, fig.align = "center", class.output="scroll-300")
+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+
+# fig label: fig1 on r chunk
+# formula label: (\#eq:f01)       
+# call it: \@ref(fig: label) 
+# hightlights word: `package`
+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+
+if(!require(pacman)) install.packages("pacman");library(pacman);p_load(
+tidyverse, haven, magrittr, furrr,Hmisc, grid, ggplotify, forestplot, knitr, kableExtra, DT, network, sna
+)
+source("../00_supp/anh_functions.R")
+draw_table = purrr::partial(reactable::reactable,bordered = TRUE, striped = TRUE, highlight = TRUE)
+```
+***
+ 
+# Mở đầu
+
+Trong bài này mình sẽ khái quát lại cấu trúc trong lập trình của R. Tiếp theo là giới thiệu các hàm trong gia đình `apply`, một nhóm bao gồm các hàm sử dụng thay cho `for` nếu vòng lặp thuộc nhóm lặp độc lập. Thông qua bài này sẽ giúp các bạn có cái nhìn tổng quát hơn về lập trình trong R và sẽ biết dùng các vòng loop thế nào mang lại hiệu quả nhất trong từng trường hợp riêng biệt. Bài này có thể được chia làm 2 hoặc 3 bài, tùy thuộc vào nội dung mình chia sẽ cho từng phần là dài hay ngắn. 
+
+# Các objects trong R 
+
+Nếu các bạn đã từng học qua lớp đại số tuyến tính thì hẳn là bạn sẽ cảm thấy R vô cùng thú vị, vì cách mà R vận hành để lưu trữ cũng như lập trình khá tương đồng với các khái niệm trong môn học này. Đầu tiên chúng ta sẽ nói về các loại biến trong R
+
+## Phân loại biến 
+
+các biến được dùng trong R bao gồm
+
+- `integer`: bao gồm các số nguyên như $\dots,-2,-1,0,1,2,\dots$.
+- `numeric`: Bao gồm tất cả các số nguyên và thập phân, tương tự như biến liên tục trong thống kê.
+- `character`: các loại biến về ký tự như $A,a,B,b,C,c,\dots$, thường dùng để lưu trữ những ký hiệu, chú thích, văn bản.
+- factor: tương ứng với biến rời rạc trong thống kê. thường trong một data đối với biến rời rạc như giới tính, dân tộc, quốc gia người ta hay lưu trữ ở dạng factor để có thể dễ dàng tính toán các số liệu thống kê.
+- logical: tương ứng với hàm số indicator được định nghĩa như sau 
+
+$$
+\I(X \in A) = \cases{1, \text{ nếu } X\in A \\
+0, \text{ nếu } X\notin A}
+$$
+
+2 giá trị của loại biến này được biểu thị dưới 2 hình thức `TRUE` và `FALSE` trong đó `TRUE` tương ứng với 1, còn `FALSE` tương ứng với 0. loại biến này được dùng rất nhiều trong quá trình chọn lọc data cũng như khi làm việc với hàm `if`.
+
+Các loại biến trên lần lược được dùng trong những trường hợp khác nhau. Mỗi một giá trị nào đó thuộc một trong những loại biến này được xem là 1 giá trị vô hướng (scalar). Nếu như ta có nhiều giá trị vô hướng thì ta lưu trữ như thế nào? tiếp theo ta sẽ làm quen với các objects dùng để lưu trữ các scalar 
+
+## Lưu trữ
+
+các dạng objects dùng để lưu trữ thông tin trong R bao gồm 
+
+- Scalar 
+- Vector
+- Matrix
+- Array
+- Data frame
+- List
+
+__Scalar__. Như đã nói, scalar là đơn vị nhỏ nhất ta dùng để lưu trữ 1 mảng thông tin. ví dụ, bệnh nhân A 50 tuổi, giới tính nam, thì ta sẽ code như sau 
+
+```{r}
+age = 50
+sex = "male"
+age; sex
+```
+
+Nếu như ta có 3 bệnh nhân A,B và C với các số liệu như sau 
+
+```{r, echo=FALSE}
+tibble(name = LETTERS[1:3], sex = c("M","F","M")%>% factor(), age = c(50,48,60))%>% draw_table()
+```
+
+thì ta cần dùng những vectors để lưu trữ từng loại biến, ở đây ta có 3 biến là: name, sex và age.
+
+```{r}
+name = c("A","B","C")
+sex = factor(c("M","F","M"))
+age = c(50,48,60)
+name
+sex
+age
+```
+
+Ta để ý thấy 3 biến trên thuộc 3 loại biến khác nhau, name là character, sex là factor và age là numeric(lưu ý numeric bao gồm luôn cả integer, nhưng integer thì không thể là numeric). Lưu ý vector chỉ chứa những scalar cùng loại. 
+
+Sau khi ta đã có các vectors, nếu ta muốn lưu trữ nhiều vectors thì ta sẽ có data.frame. Như ta thấy rằng 1 data.frame bao gồm nhiều vectors có cùng chiều dài. Nếu như muốn lưu trữ những vector có chiều dài khác nhau ta có thể sử dụng list. Thật ra data.frame chính là 1 dạng đặc biệt của list đi kèm với điều kiện là chiều dài các vector phải như nhau.
+
+matrix trong R được xây dựng khá giống với matrix trong đại số tuyến tính, khi ta có nhu cầu tính toán các matrices thì ta có thể lưu trữ các scalars trong 1 matrix. Cũng như vector, matrix đều phải chứa các scalar cùng loại. Mặc dù ta có thể chứa các scalar thuộc loại character trong 1 matrix, nhưng trên thực tế điều này ít khi được sử dụng, vì matrix được tạo ra là để tính toán, trong khi đối với các scalar dạng character thì ta không có nhu cầu tính toán. Vì thế để lưu trữ các characters ta sẽ dùng các vector, data.frame hoặc list. 
+
+list là đơn vị lưu trữ lớn nhất và mạnh nhất trong R, nó có thể lưu trữ nhiều loại objects khác nhau như vector, matrix thậm chí là những list khác. Theo kinh nghiệm bản thân thì mình luôn lưu trữ các thông tin bằng list vì nó thuận tiện để chạy các vòng loop về sau. 
+
+Array là tập hợp của nhiều matrices, mình ít khi dùng array, nếu ta có nhiều matrices thì có thể lưu trữ trong list mà không cần dùng tới array. khi thực hiện các phép toán về tuyến tính, thì ta cũng chỉ có dùng tới matrix mà thôi, array được tính bằng cách tạo ra 1 vòng loop cho chạy từng matrix của array đó. 
+
+```{r}
+dat = data.frame(name = name, sex = sex, age = age)
+dat2 = list(name = name, sex = sex, age = age)
+dat; 
+dat2
+
+list3 = list(`luu_tru_data_frame` = dat, `luu_tru_list` = dat2)
+list3
+```
+
+Trong nhiều trường hợp ta sẽ có các list nằm trong list, vì thế ta cũng sẽ có nhu cầu để _append_ các list trong 1 list tổng như sau 
+
+```{r}
+list4 = list(sub_list1 = list(a = 1,b=2),sub_list2 = list(x = "a",y = "h")); list4
+Reduce(append,list4)
+```
+
+hàm `Reduce` mình dùng ở trên là thuộc nhóm các _high level function_ được định nghĩa như là những hàm số có thể nhận một hàm số khác làm biến. Về mặt toán học ta có thể tưởng tượng như là 
+
+$$
+f\big[g(x)\big] = f\circ g(x)
+$$
+
+## Hàm số
+
+Trong R, một hàm số được định nghĩa khá giống với cách ta định nghĩa một hàm số toán học $y = f(x)$. Ví dụ ta muốn định nghĩa một hàm số sau 
+
+$$
+\begin{split}
+y &= f(x) &= x^2+1 \\
+z  &= g(i,j) &= i+j+1
+\end{split}
+$$
+Ta sẽ định nghĩa như sau 
+
+```{r}
+y = function(x){
+  result = x^2+1
+  return(result)
+}
+
+z = function(i,j){
+  result = i+j+1
+  return(result)
+}
+```
+
+`return` là hàm trả lại giá trị chung cuộc cuối cùng của 1 hàm số. thông thường R sẽ tự trả về giá trị cuối cùng được định nghĩa trong function đó, nhưng để rõ ràng ta hãy luôn định nghĩa giá trị chung cuộc và sử dụng hàm `return` để trả về giá trị mong muốn. 
+
+```{r}
+y(2)
+z(2,3)
+```
+
+# vòng lặp (loop)
+
+3 khái niệm `list`, `function` và `loop` rất quan trọng và tương tác với nhau cực kỳ nhiều trong suốt quá trình làm việc với data. Bây giờ ta sẽ tìm hiểu về loop trước khi ta đi đến phần chính của bài này.
+
+Trong R, để định nghĩa 1 vòng loop ta có 3 cách là 
+
+- `for`
+- `while`
+- `repeat`
+
+Tùy thuộc vào nhu cầu khác nhau mà ta sử dụng 3 loại này khác nhau. Ta hãy xem định nghĩa 3 loại loop trên bằng cách xem xét 1 ví dụ: ta muốn in các giá trị $i$ bắt đầu từ $i=1$ cho đến $i=3$, một khi $i$ lớn hơn $3$ thì loop sẽ dừng lại. 
+
+```{r}
+
+#### for ####
+for(i in 1:3){
+  print(i)
+}
+
+#### while ####
+i = 1
+while(i<=3){
+  print(i)
+  i = i+1
+}
+
+#### repeat ####
+j = 1
+repeat{
+  print(j)
+  j=j+1
+  if(j>3) break
+}
+```
+
+Ta dễ thấy rằng:
+
+- `for`. ta cần biết số lần loop sẽ chạy, ở đây là 3 lần, mỗi một lần chạy tương ứng với 1 giá trị của $i$ được định nghĩa trong phần ngoặc tròn.
+- `while`. check điều kiện trước khi bắt đầu chạy, và điều kiện đó được định nghĩa trong ngoặc tròn
+- `repeat`. chạy rồi mới check điều kiện. với `repeat` ta cần định nghĩa 1 hàm `if` ở cuối để check, khi điều kiện trong `if` thỏa thì ta sẽ `break` vòng lặp. 
+
+Cả 3 vòng loop này đều có thể sử dụng để chạy trong cả 2 điều kiện độc lập và không độc lập. Để hiểu giữa vòng lặp độc lập và vòng lặp không độc lập ta hãy xem xét 2 ví dụ sau 
+
+1. __Vòng lặp không độc lập.__ Ví dụ ta có cần tìm 1 giá trị cách số $5$ là 0.005 đơn vị, ta bắt đầu từ số $10$. Ta sẽ cho vòng lập chạy với giá trị ban đầu là $10$, sau mỗi 1 vòng, giá trị $10$ sẽ được trừ đi $0.001$, cho đến khi nào thỏa điều kiện thì vòn lặp dừng. Ta làm như sau 
+
+```{r}
+x = 10
+while(x-5 >0.005){
+  print(x)
+  x = round(x-0.001,3)
+}
+x
+```
+
+Trong ví dụ trên, ta thấy rằng sau mỗi vòn lặp thì giá trị $x$ được cập nhật dựa trên giá trị liền trước của nó. Như vậy, giữa các vòng lặp có sự phụ thuộc vào nhau. Nếu lần trước là $5.008$, thì lần sau là $5.007$, còn nếu lần trước là $5.007$ thì lần sau là $5.006$.
+
+2. __Vòng lặp độc lập.__ ví dụ ta có giá trị $x =5$, ta muốn trong mỗi vòng lặp ta có giá trị $x*i$ với $i = 1,2,\dots,5$.
+
+```{r}
+x = 5
+for(i in 1:5) print(x*i)
+```
+
+Ở ví dụ trên ta thấy rằng trong mỗi vòng lặp, giá trị của $x$ luôn là $5$, các giá trị trả về khác nhau phụ thuộc vào sự thay đổi của giá trị $i$. Vòng lập dạng này được xem là độc lập. 
+
+Đối với vòng lặp phụ thuộc, hay không độc lập, thì được sử dụng nhiều nếu như bạn làm việc với các thuật toán. Ví dụ thuộc toán tìm điểm nhỏ nhất, ta sẽ phải cho chạy 1 vòng lập, trong mỗi vòng giá trị cần tìm sẽ lần lượt được cập nhật cho đến khi nào nó thỏa 1 điều kiện nào đó. Trong khi vòng lặp độc lập thì được sử dụng khá nhiều khi ta làm việc với data.frame, vector hay list. Ví dụ ta muốn tính toán cho từng scalar của 1 vector, hay từng cột của 1 data.frame, hay từng thành viên của 1 list. Vì thế R đã phát triển một hệ thống các hàm số để phục vụ cho nhu cầu này. Theo ngôn ngữ python nó tương đương với hàm số lambda. 
+
+## Vòng lặp độc lập 
+
+trong hệ thống các hàm chuẩn của R, ta có các hàm `apply`, được xem là gia đình họ `apply`, bao gồm 
+
+- `apply`: thường sử dụng để tính toán dọc theo cột hay dọc theo hàng của một matrix. đầu ra của từng vòng là từng scalar hay 1 vector. 
+- `sapply`: đầu vào là vector, data.frame, list. Đầu ra của từng vòng phải là scalar hay 1 vector.
+- `lapply`: thành viên mạnh nhất của gia đình apply, đầu vào như sapply đầu ra là bất cứ dạng object nào.
+
+Ngoài 3 thành viên trên gia đình apply còn vài thành viên khác như mapply, tapply, vapply, eapply... nhưng những hàm này không thông dụng. có thời gian chúng ta sẽ bàn tới những hàm này sau. 
+
+Đối với apply và sapply, nếu đầu ra của từng vòng là scalar thì tất cả scalar của từng vòng sẽ được lưu trữ thành 1 vector, còn nếu mỗi vòng là 1 vector thì các vector sẽ được lưu thành 1 matrix. Với hàm lapply, tất cả các giá trị trả về trong từng vòng lập sẽ được lưu trữ thành 1 list. Và như ta đã đề cặp, list là hàm lưu trữ mạnh nhất trong R vì nó có thể lưu trữ bất cứ thứ gì, ở bất cứ dạng nào. Ta hãy xem xép vài ví dụ
+
+```{r}
+m = matrix(c(1:9),ncol = 3);m
+```
+
+Ta muốn tính tổng của từng cột và từng hàng
+
+```{r}
+# column
+apply(m,2,function(i) sum(i))
+```
+Hàm số được định nghĩa trong hàm apply nhận giá trị $i$ là từng cột của matrix `m`. 
+
+Tương tự cho từng hàng
+
+```{r}
+apply(m,1,function(i) sum(i))
+```
+
+Ta hãy xem nếu trong mỗi vòng lặp ta chọn ra 2 giá trị đầu tiên của 1 cột
+
+```{r}
+apply(m,2, function(i) i[1:2] )
+```
+
+Lưu ý, mỗi vector trong từng vòng sẽ tạo thành từng cột trong matrix kết quả. 
+
+ví dụ tiếp theo 
+
+```{r}
+x = 1:5
+d = data.frame(a = 1:2,b = 3:4)
+l = list(a = 1:2, b = 1:4)
+```
+
+Sử dụng sapply để nhân mỗi giá trị trong `x` với $5$ (đầu ra scalar)
+
+```{r}
+sapply(x,function(i) i*5)
+```
+
+lập lại giá trị của `x` 3 lần (đầu ra là vector cùng chiều dài là 3)
+
+```{r}
+sapply(x, function(i) rep(i,3))
+```
+
+Sử dụng sapply cho data.frame và list 
+
+```{r}
+sapply(d, function(i) sum(i)) # hoặc đơn giản là sapply(d, sum)
+sapply(l, function(i) sum(i))
+```
+
+Sử dụng lapply lập lại `"a"` x lần (đầu ra là scalar và vector có chiều dài không bằng nhau)
+
+```{r}
+lapply(x, function(i) rep("a",i))
+```
+
+Tương tự 
+
+```{r}
+lapply(l, function(i) sum(i))
+```
+
+Ví dụ ta có 3 vector như sau 
+
+```{r}
+a = c(1:3); b = c(4:6); k = c(7:9)
+```
+
+Ta muốn cộng mỗi giá trị của từng vector theo thứ tự là $1+4+7$, $2+5+8$ và $3+6+9$. Ta dùng làm `mapply`
+
+```{r}
+mapply(function(x,y,z) x+y+z, a,b,k)
+mapply(function(x,y) rep(x,y),a,b)
+mapply(function(x,y,z) c(x,y,z), a,b,k )
+```
+Trong 3 ví dụ trên ta thấy rằng tùy thuộc vào đầu ra của từng vòng mà hàm `mapply` sẽ lưu trữ các giá trị ở các dạng khác nhau (nó tương tự như sapply). Một hàm nữa đáng quan tâm là hàm `Map`, cũng như lapply `Map` luôn lưu trữ các giá trị trong list, tuy nhiên cách sử dụng khá giống `mapply`
+
+```{r}
+Map(function(x,y,z) x+y+z, a,b,k)
+Map(function(x,y) rep(x,y),a,b)
+Map(function(x,y,z) c(x,y,z), a,b,k )
+```
+
+Thông thường hàm `lapply` và `Map` được mong đợi sử dụng hơn các hàm còn lại, vì nó luôn trả lại 1 list, vì thế bất kể kết quả trong từng vòng như thế nào, 2 hàm này luôn cho ta một kết quả như mong đợi. Trong khi đó, để sử dụng các hàm còn lại, ta phải biết rõ kết quả trả lại trong từng vòng là gì, vì tùy thuộc vào kết quả đó mà dạng lưu trữ được sử dụng khác nhau. 
+
+Vì nhu cầu sử dụng vòng lặp độc lập là khá thường xuyên nên trong hệ thống các packages `tidyverse` có package `purrr` hổ trợ mục đích này. `purrr` có hẳn 1 gia đình `map` (tương tự apply nhưng đa dạng hơn) và kèm theo các hàm số vô cùng hữu ích phục vụ cho gia đình `map`. Trong bài sau ta sẽ làm quen với `purrr`. Giờ ta sẽ xem qua 1 số ví dụ minh họa với data thực tế
+
+# Ví dụ 
+
+Ta có dataset như bên dưới
+
+```{r}
+dat = iris;
+head(dat)
+```
+
+ta muốn tính mean của 4 cột đầu tiên: _loop chạy từng cột_
+
+```{r}
+lapply(dat[,1:4], function(i) mean(i))%>%
+  as.data.frame()
+```
+
+`lapply` trả lại 1 list, nhưng mỗi giá trị trong list là 1 scalar có tên, nên ta có thể biến đổi từ list về lại data.frame dễ dàng bằng hàm `as.data.frame`. 
+
+Ta hãy làm quen thêm 1 hàm nữa là hàm `tapply`, sử dụng để tính một giá trị nào đó theo nhóm. Ví dụ ta ta xem xét 2 cột cuối cùng của data trên 
+
+```{r}
+dat$Petal.Width
+table(dat$Species)
+```
+
+Cột _petal.Width_ là các số dạng numeric được phân thành 3 nhóm bởi cột `Species` với mỗi nhóm chứa 50 giá trị. Ta muốn tính `mean` từng nhóm, ta làm như sau 
+
+```{r}
+tapply(dat$Petal.Width,dat$Species, function(i) mean(i)) # hoặc tapply(dat$Petal.Width,dat$Species, mean)
+```
+
+Ta hãy tính mean của từng nhóm trong 4 cột đầu tiên, ta làm như sau 
+
+```{r}
+lapply(dat[,1:4], function(i) tapply(i,dat$Species,mean))
+```
+
+Ta  lấy các giá trị lần lượt của 3 cột đầu tiên tương đương với 3 nhóm của cột thứ 5. Nghĩa là với cột `Sepal.Length` ta lấy các giá trị thuộc nhóm `setosa`, lấy các giá trị của cột `Sepal.Width` thuộc nhóm `versicolor` và tương tự cho cột thứ 3 với nhóm còn lại.
+
+```{r}
+Map(function(x,y) x[dat$Species==y] ,dat[,1:3], c("setosa","versicolor", "virginica") )
+```
+
+Cũng có thể làm như sau 
+
+```{r}
+Map(function(x,y) dat[dat$Species==y,c(x,5)] ,1:3,c("setosa","versicolor", "virginica"))
+```
+
+Thật ra những gì ta tính trong phần ví dụ này đều có thể tính toán một cách dễ dàng hơn với sự trợ giúp của package `dplyr` một thành viên trong gia đình `tidyverse`. Nhưng với mục đích minh họa ta sẽ tính theo các cách như trên. 
+
+
+
+
+
+

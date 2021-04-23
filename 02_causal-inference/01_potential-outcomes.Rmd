@@ -1,0 +1,284 @@
+---
+title: "📍Potential Outcomes"
+author: 👦 $\mathcal{An}$^[anh.stats@gmail.com]
+date: "&#x1F4C5; _`r {
+if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
+update=FALSE
+filename=knitr::current_input(dir = FALSE)
+mylist <- readRDS(file ='date_list.rds')
+if(update|!(filename%in%names(mylist))){
+mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
+saveRDS(mylist, file = 'date_list.rds')}
+readRDS(file ='date_list.rds')[[filename]]  }`_"
+abstract: |
+  Đây là bài đầu tiên trong chuỗi bài về causal Inference, chúng ta sẽ bắt đầu bằng các khái niệm cơ bản trong suy luận nhân quả như potential outcomes, ba quy ước quan trọng trong lý thuyết về suy luận nhân quả. Có nhiều cách giải quyết bài toán nhân quả, ta sẽ lần lượt tìm hiểu qua những bài tiếp theo. 
+header-includes:
+   - \usepackage{amsmath}
+   - \usepackage{titling}
+   - \pretitle{\begin{flushleft}}
+   - \posttitle{\end{flushleft}}
+   - \usepackage{eso-pic,graphicx,transparent}
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+        after_body: "../00_supp/mycomment.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: ["../00_supp/apa.csl"]
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("casual.jpg");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+```{r child = "../00_supp/general_rmd.Rmd"}
+```
+
+# Giới thiệu  
+
+Trước khi đi vào giải thích nội dung chính về _potential outcomes (biến phụ thuộc tiềm năng)_, chúng ta sẽ xem xét một vài ví dụ điển hình để thấy rằng tại sao _causal inference (suy luận nhân quả)_ lại quan trọng khi ta tiến hành so sánh thí nghiệm bằng các phương pháp thống kê. Ta hãy xem xét 2 trường hợp sau đây 
+
+**Trường hợp 1.** giả sử ta tiến hành một thí nghiệm so sánh hiệu quả trong điều trị một căn bệnh $D$ bằng hai treatments (phương pháp điều trị) $T_1$ và $T_2$. Trong nhóm bệnh nhân tham gia thí nghiệm, ta dễ dàng thấy rằng có thể chia những bệnh nhân này thành 2 nhóm theo giới tính $X = \{nam, nữ\}$. Ta cho những bệnh nhân nam điều trị bằng phương pháp $T_1$ và những bệnh nhân nữ điều trị bằng phương pháp $T_2$. Ta cũng có thêm thông tin rằng căn bệnh $D$ này thường diễn biến xấu hơn nếu người mang bệnh là nữ, như vậy rõ ràng là điều kiện giới tính $X$ có mối quan hệ với cả tình trạng bệnh, và phương pháp điều trị. Vì thế khi tiến hành so sánh, kết quả sẽ bị nhiễu, vì hiệu quả phương pháp điều trị đã bị nhiễu bởi điều kiện giới tính $X$. Nói cách khác, khi so sánh trực tiếp từ biến điều trị $T$ và kết quả $Y$, ta đã bỏ qua tác nhân $X$. Để tránh tình trạng nhiễu, ta cần so sánh trên một nhóm người có cùng điều kiện giới tính, và phương pháp được kết luận là hiệu quả hơn phải cho kết quả như nhau ở cả hai nhóm bệnh nhân. 
+
+**Trường hợp 2.** Ta lại xem xét 2 phương pháp điều trị $T_1$ và $T_2$ cho một căn bệnh $D$ nào đó. Nhóm bệnh nhân tham gia có thể được phân chia theo tình trạnh bệnh nặng và nhẹ, tạm gọi là biến số $X$. Nếu như $T_1$ khá khang hiếm, bệnh nhân được điều trị bằng phương pháp này bắt buộc phải chờ đợi. Điều này không xảy ra với phương pháp $T_2$. Như vậy, một bệnh nhân nào đó muốn điều trị bằng phương pháp $T_1$ sẽ phải đợi trong một khoảng thời gian nhất định, và trong suốt khoảng thời gian này, tình trạng bệnh của bệnh nhân sẽ diễn biến ngày một xấu đi. Cho đến khi bệnh nhân đó chính thức được điều trị, thì bệnh nhân từ nhóm nhẹ đã chuyển thành nhóm nặng. Rõ ràng, biến số treatment $T$ đã ảnh hưởng lên tình trạng bệnh, do đó ngay cả khi $T_1$ hiệu quả hơn $T_2$, thì dưới điều kiện như trên, nó lại trở nên kém hiệu quả hơn $T_2$, bởi vì tình trạng bệnh cũng sẽ gây ảnh hưởng lên khả năng phục hồi của bệnh nhân, và trong thí nghiệm này, ta lại một lần nữa không xem xét biến số về tình trạng bệnh. 
+
+Tóm lại, treatment hoàn toàn phụ thuộc vào một biến số điều kiện nào đó, và điều kiện này cũng ảnh hưởng đến khả năng điều trị, tức outcomes $Y$. Kết luận sẽ không chính xác nếu ta bỏ qua các confounder (biến điều kiện gây nhiễu)$X$.  Hai trường hợp trên có thể phân biệt bằng sự ảnh hưởng lên nhau của các biến số, trong trường hợp 1 thì confounder $X$ ảnh hưởng lên treatment $T$, còn trường hợp 2 thì treatment $T$ lại ảnh hưởng lên confounders $X$ _(xem hình \@ref(fig:relationship))_. Như vậy, để có thể kết luận về mối quan hệ nhân quả một cách chính xác, thì trước khi tiến hành phân tích thống kê bằng các phương pháp thống kê căn bản, ta cần phải xét các confounders trong một data. 
+
+```{r relationship, fig.cap="*(trái) confounders ảnh hưởng lên treatment và outcome; (phải) treatment ảnh hưởng lên confounders và outcomes*"}
+d = tibble(x = c(0.2,0.5,0.8), y = c(0.3,0.8,0.3), lab = c("T","X","Y"))
+edge = c("XT","TY","XY")
+draw = draw_diagram(d, invisible = T)
+draw$edge(edge)
+g1 = draw$finalize(arrow = T)
+
+edge2 = c("TX","TY","XY")
+draw$edge(edge2)
+g2 = draw$finalize(arrow = T)
+gridExtra::grid.arrange(g1,g2, ncol = 2)
+```
+
+Tiếp theo ta cần nhớ rằng _correlation (quan hệ tương quan)_ không hề (hoặc không trực tiếp) đưa đến quan hệ _causation (quan hệ nhân quả)_. Ví dụ, ta tìm hiểu về nguyên nhân dẫn đến chứng đau đầu bằng cách xem xét 2 tác nhân: (1) uống nước đá, và (2) không uống nước đá. Rõ ràng, nếu ta xem xét một bản số liệu nào đó thì ta thấy được mối tương quan giữa hai biến số này, người càng uống nhiều nước đá, thì khả năng bị đau đầu càng nhiều. Nhưng liệu mối tương quan này có cho phép ta kết kết luận rằng nguyên nhân của đau đầu chính là vì uống nước đá, và ta không nên uống nước đá nếu muốn hết đau đầu? Nếu ta xem xét kỹ hơn một chút, ta thấy rằng, đa số những người uống nhiều nước đá có khuynh hướng đi ngoài trời nắng nhiều hơn những người ít hoặc không uống nước đá, và rõ ràng, việc đi dưới trời nắng nhiều hay ít chính là nguyên nhân dẫn đến tình trạng đau đầu. Ta thấy rằng biến số điều kiện $X$ đại diện cho việc đi dưới trời nắng đã ảnh hưởng lên biến số $T$ đại diện cho việc uống nước đá. Cũng có thể, khi xem xét ở một góc độ nào đó, ta sẽ có thể thấy nước đá cũng có ảnh hưởng lên chứng đau đầu nhưng không đáng kể, và nguyên nhân chính vẫn là do người đó đi dưới trời nắng nóng. Như vậy ta thấy rằng:
+
+> <span style="color:purple">mức độ tương quan của 2 biến số nào đó không hề dẫn đến quan hệ nhân quả của 2 biến đó</span> 
+
+# Potential outcomes và các ảnh hưởng riêng lẻ của treatments
+
+Ở phần này ta sẽ tìm hiểu những khái niệm cơ bản trong các phân tích về suy luận nhân quả. Đầu tiên là _potential outcome_, ta lần lượt xem xét 2 trường hợp sau
+
+__Trường hợp 1.__ Bạn vừa đi quẩy về nhà lúc 1h sáng và phát hiện mình bị nhức đầu, như vậy có thể khẳng định rằng nguyên nhân gây ra tình trạng nhức đầu là do bạn đã đi quẩy hay không? Nếu như hôm nay bạn không đi quẩy với lũ bạn, nhưng bạn vẫn bị nhức đầu thì sao? Rõ ràng "đi quẩy" không thật sự là nguyên nhân gây ra cơn nhức đầu vừa rồi. 
+
+__Trường hợp 2.__ Ta hãy xem xét vấn đề trên ở một diễn biến khác. Nếu như bạn đi quẩy, và bị nhức đầu, nếu như bạn không đi quẩy và bạn không bị nhức đầu. Trong trường hợp này, rõ ràng "đi quẩy" là một nguyên nhân khá rõ ràng dẫn đến tình trạng nhức đầu. 
+
+Trong 2 trường hợp trên, ta đã sử dụng phương pháp suy luận nhân quả (causal inference). Trong nội dung này, ta có thể xem outcome như là hệ quả, nói cách khác là kết quả có được khi ta thực hiện một can thiệp nào đó. Ví dụ ta gọi biến phụ thuộc $Y = 1$ đại diện cho kết quả nhức đầu, và $Y=0$ là không nhức đầu. Phương pháp điều trị $T = 1$, là hành động can thiệp (intervention) hay nguyên nhân (chính là đi quẩy) và ngược lại $T=0$ (không đi quẩy). Ta ký hiệu $Y(1)$ chính là potential outcome khi ta can thiệp $T=1$ (tức là bị nhức đầu và trước đó đã đi quẩy), giải thích tương tự cho $Y(0)$. Tổng quát, ta gọi $Y(t)$ là potential outcome (hay biến kết quả tiềm năng) nếu có sự can thiệp $t$. Ta có thể hiểu nôm na là $Y(t)$ tức là kết quả giả định mà ta có được dưới can thiệp $t$, khác với biến $Y$ là kết quả sau khi được can thiệp, tức là kết quả thật sự có thể quan sát (xem hình \@ref(fig:fig1)). Ta có thể nhận thấy rằng không phải tất cả potential outcome $Y(t)$, đều có thể quan sát được. ví dụ như ta đã đi quẩy và ta bị nhức đầu, ta không thể biết được nếu ta không đi quẩy thì ta có bị nhức đầu hay không. 
+
+Ở hai ví dụ trên, ta chỉ xét trường hợp cá nhân, nó được xem là một quan sát. Trong một diễn biến khác, ví dụ ngày hôm sau ta và đám bạn gặp nhau trong công ty, trong giờ cơm trưa, cả đám kể lại những gì xảy ra ngày hôm qua sau khi mỗi đứa về nhà, như vậy nếu nhóm bạn có tất cả $n$ người thì quan sát thứ $i$th chính là người bạn thứ $i$th trong nhóm bạn của ta. Chúng ta có thể định nghĩa _individual treatment effect (ITE) (ảnh hưởng riêng lẻ của phương pháp điều trị)_ cho từng cá nhân là 
+
+$$
+\tau_i := Y_i(1) - Y_i(0)
+(\#eq:21)
+$$
+
+Chú ý rằng \@ref(eq:21) sử dụng potential outcome để tính ITE. Ví dụ Nếu bạn đi quẩy và bị nhức đầu, tức là $Y(1) = 1$, còn không đi quẩy và không bị nhức đầu là $Y(0) = 0$, như vậy $\tau = Y(1) - Y(0) = 1-0 =1$, như vậy bạn có thể nói do đi quẩy nên bị nhức đầu, ngược lại nếu bạn không đi quẩy mà vẫn bị nhức đầu tức là $\tau = Y(1)-Y(0) = 1 - 1 = 0$, bạn không thể kết luận nguyên nhân nhức đầu là do đi quẩy. 
+
+# Vấn đề phát sinh trong suy luận nhân quả 
+<!-- part 2.2, p7 -->
+Trên thức tế thì ta không bao giờ có thể quan sát được 2 kết quả trên cùng một đối tượng. Ví dụ như bạn đi quẩy về, và bị nhức đầu, thì nhức đầu chính là kết quả bạn nhận được sau khi đi quẩy; trong khi đó em gái bạn ở nhà và không bị nhức đầu, thì không bị nhức đầu là kết quả của em gái bạn. Ta không thể nào quan sát được kết quả khi bạn không đi quẩy, và tương tự ta cũng không thể quan sát được kết quả khi em gái bạn đi quẩy. Đây chính là vấn đề căn bản khi làm việc với suy luận nhân quả trong thống kê. Như vậy, dễ thấy rằng với bất kỳ một đơn vị $i$ nào đó, ta chỉ có thể có được $Y_i(0)$ HOẶC $Y_i(1)$, do đó kết quả nhân quả $Y_i(1) - Y_i(0)$ không thể tính được. Đây chính là điểm khác biệt giữa suy luận nhân quả và học máy (machine learning). Với học máy, ta chỉ quan tâm tới việc dự đoán một kết quả $Y$ đã quan sát chứ không cần xem xét tới potential outcome. Kết quả không được quan sát ta gọi là _đối chứng (counterfactual)_, bởi vì nó đối lại với những gì đã được chứng minh là có tồn tại; ngược lại kết quả có thể quan sát là _thực chứng (factual)_.
+
+<!-- move to part 2.1 potential outcomes, p5  -->
+Như vậy bởi vì $\{\tau_i|i=1,2,\dots,n\}$ không thể tính toán nên $\tau = \E(\tau_i)$ không thể xác định được. Trước khi tìm hiểu các phương pháp giải quyết vấn đề này, ta hãy làm quen với một số khái niệm cũng như các quy ước căn bản trong suy luận nhân quả. 
+
+# Các quy ước cơ bản trong suy luận nhân quả
+
+## Giá trị trung bình của kết quả điều trị và cách giải thích dựa trên kiến thức của số liệu khuyết 
+
+Như đã đề cập ở trên thì đối với mỗi một bệnh nhân ta chỉ có thể thu được 1 kết quả duy nhất, vì thế việc tính toán hiệu quả của phương pháp điều trị (treatment effect (TE)) trên mỗi một bệnh nhân là bất khả thi. Tuy nhiên ta vẫn có thể tính toán được giá trị trung bình của TE (average treatment effect (ATE)) bằng công thức sau 
+
+$$
+\tau = \E[Y_i(1) - Y_i(0)] = \E[Y(1) - Y(0)]
+(\#eq:41)
+$$
+
+```{r fig1, fig.cap="_số liệu minh họa cho vấn đề cơ bản trong suy luận nhân quả được giải thích bằng số liệu khuyết_"}
+set.seed(2020)
+treat = sample(0:1, 10, replace = T)
+y1 = ifelse(treat==1, "1","?")%>% modify_if(~.=="1", ~sample(c("0","1"),1))
+y2 = ifelse(y1=="?",1,"?")%>% modify_if(~.=="1", ~sample(c("0","1"),1))
+y = ifelse(treat==1, y1,y2)
+
+d= tibble(treatment = treat, Y = y, `Y(1)` = y1, `Y(0)` = y2)%>% mutate(`Y(1) - Y(0)` = "?")
+draw_table(d, columns  = map(1:5,~colDef(align = "center"))%>% `names<-`(names(d)))
+```
+
+Ta hãy quan sát bảng \@ref(fig:fig1), cột $Y$ là giá trị duy nhất mà ta có thể quan sát được, còn 3 cột cuối đều bị khuyết số liệu. Như vậy, nhìn vào bảng này, ý tưởng đầu tiên ta có thể nghĩ ra là tính sự khác nhau của 2 nhóm liên đới (associational difference) $\E[Y|T=1] - \E[T|T=0]$. chúng ta mong đợi rằng nó sẽ tương đương với \@ref(eq:41), nhưng thật ra điều này không đúng bởi vì một khi điều này xảy ra thì có nghĩa là association và causation sẽ giống nhau, và như đã giải thích ở phần trước, hai đại lượng này không thể bằng nhau. 
+
+Để giải quyết vấn đề trên ta hãy xem những nơi có dấu “?” trong bảng \@ref(fig:fig1) như là số liệu khuyết (missing data), và những giá trị bị khuyết này xảy ra ngẫu nhiên. Tiếp theo ta cần một số quy ước nhằm làm cho vấn đề trở nên đơn giản hơn, những quy ước được đề cập tiếp theo chính là những quy ước quan trọng trong suy luận nhân quả.
+
+Ta hãy xem xét 2 quy ước **ignorability** và **exchangeability**. Quy ước thứ nhất được ký hiệu như sau
+
+$$
+(Y(1),Y(0)) \indep T
+(\#eq:42)
+$$
+Quy ước này chính là quy ước quan trọng nhất, bởi vì ta có thể tính được ATE một khi quy ước này thỏa mãn như sau
+
+$$
+\begin{aligned}
+\E[Y(1)]-\E[Y(0)] &= \E[Y(1)|T=1] - \E[Y(0)|T=0] \\
+&= \E[Y|T=1] - \E[Y|T=0]
+\end{aligned}
+(\#eq:43)
+$$
+\@ref(eq:43) chỉ thỏa mãn một khi $Y(0)$ và $Y(1)$ độc lập với $T$. Ignorability đồng thời khẳng định quy ước exchangeability, nghĩa là
+
+$$
+\begin{aligned}
+\mathbb{E}[Y(1)|T=0] &= \mathbb{E}[Y(1)|T=1], \text{  và  } \mathbb{E}[Y(0)|T=0] = \mathbb{E}[Y(0)|T=1] \\
+\Rightarrow \mathbb{E}[Y(1)|T=t] &= \mathbb{E}[Y(1)], \text{ và } \\
+\Rightarrow \mathbb{E}[Y(0)|T=t] &= \mathbb{E}[Y(0)] 
+\end{aligned}
+$$
+Trên thực tế điều này chỉ đúng một khi treatment $T$ là ngẫu nhiên, tuy nhiên giả thuyết này không hoàn toàn đúng. Để làm cho giả thuyết trở nên khả thi ta cần xem xét ở một khía cạnh khác, đó là xem xét sự có mặt của nhân tố $X$ trong bộ 3 biến $(X,T,Y)$. Như đã nói nếu như $(Y(1),Y(0))\indep T$ không hoàn toàn đúng, vậy nếu ta xem xét đến sự có mặt của $X$ thì sao?! Ta hãy xem xét tới 1 quy ước khác nằm trong nhóm 3 quy ước “thần thánh” khi tiếp cận các vấn đề trong suy luận nhân quả.
+
+## Confoundedness
+
+:::: {.blackbox .important data-latex=""}
+::: {.center data-latex=""}
+**$\bigstar$ Confoundedness:**  trong cùng một giá trị của X thì potential outcomes sẽ hoàn toàn độc lập với treatment $T$. 
+:::
+
+$$
+(Y(1),Y(2)) \perp\!\!\!\!\perp T|X
+(\#eq:44)
+$$
+::::
+
+Như vậy ta có thể biến đổi như sau
+
+$$
+\begin{aligned}
+\mathbb{E}[Y(1) - Y(0)|X] &= \mathbb{E}[Y(1)|X] - \mathbb{E}[Y(0)|X] \\
+&= \mathbb{E}[Y(1)|T=1,X] - \mathbb{E}[Y(0)|T=0,X] \\
+&= \mathbb{E}[Y|T=1,X] - \mathbb{E}[Y|T=0,X]
+\end{aligned}
+(\#eq:45)
+$$ 
+cách giải thích tương tự như trước đó. Như vậy ta có
+
+$$
+\begin{aligned}
+\mathbb{E}[Y(1) - Y(0)] &= \mathbb{E}_X\mathbb{E}[Y(1)-Y(0)|X] \\
+&= \mathbb{E}_X\Big[\mathbb{E}(Y|T=1,X) - \mathbb{E}(Y|T=0,X)\Big]
+\end{aligned}
+(\#eq:46)
+$$
+
+Ta có thể dễ dàng thấy được mối quan hệ giữa \@ref(eq:45) và \@ref(eq:46). Đây chính là kết quả quan trọng nhất dưới quy ước \@ref(eq:44).
+
+## Positivity
+
+Ta sẽ giới thiệu thêm 1 quy ước nữa là quy ước về xác suất luôn dương, được ký hiệu như bên dưới
+
+:::: {.blackbox .important data-latex=""}
+::: {.center data-latex=""}
+**$\bigstar$ Positivity:** trong cùng một giá trị của confounder $X$, xác suất để nhận một trong hai treatment đều lớn hơn 0.
+:::
+
+$$
+0 < \P(T=1|X=x) <1
+(\#eq:47)
+$$ 
+::::
+
+Để giải thích tại sao quy ước này quan trọng, ta cần xem xét vài điểm trong kiến thức thống kê. giải thích này có thể được bỏ qua mà không ảnh hưởng đến các phần sau.
+
+:::: {.blackbox .mathematics data-latex=""} 
+::: {.center data-latex=""}
+**A little mathy!!!** 
+:::
+ Ta hãy mở rộng kết quả của \@ref(eq:47) như sau 
+ 
+$$
+\sum_x\P(X=x)\Big[\sum_yy\P(Y=y|T=1,X=x) - \sum_yy\P(Y=y|T=0,X=x)\Big] 
+(\#eq:48)
+$$
+
+Giờ ta sử dụng công thức Bayes  biến đổi tiếp như sau 
+
+$$ 
+\sum_x\P(X=x)\Big[\sum_yy\frac{\P(Y=y,T=t,X=x)}{\P(T=1|X=x)\P(X=x)} -  \sum_yy\frac{\P(Y=y,T=0,X=x)}{\P(T=0|X=x)\P(X=x)}  \Big]
+(\#eq:49)
+$$
+
+Rõ ràng nếu như $\P(T=1|X=x) = 0$ cho bất kỳ giá trị $x$ nào, thì phương trình \@ref(eq:49) đều không thể xác định. $\blacksquare$
+::::
+
+về mặt từ ngữ, chúng ta có thể hiểu là nếu như trong cùng một nhóm $X =x$ nào đó, tất cả bệnh nhân được điều trị bằng 1 phương pháp duy nhất, thì ta không thể tiến hành so sánh phương pháp đó với phương pháp nào khác, bời vì không có ai dùng phương pháp khác cả. 
+
+Một lưu ý nhỏ ta cần biết là 2 quy ước \@ref(eq:48) và \@ref(eq:49) có mối quan hệ bù trừ cho nhau. Ví dụ như trong một tập data, nếu như ta chia nhỏ ra thành nhiều nhóm nhỏ, trong khi quy ước confoundedness càng được bảo đảm thì quy ước positivity sẽ giảm bởi vì nếu chia nhóm càng nhỏ thì xác suất các thành viên trong cùng 1 nhóm nhận duy nhất 1 loại điều trị là rất cao. Ta có thể giải thích tương tự cho trường hợp ngược lại. 
+
+## No interference & Consistency
+
+
+:::: {.blackbox .important data-latex=""}
+::: {.center data-latex=""}
+**$\bigstar$ No interference:** outcome của ta sẽ không bị ảnh hưởng bởi treatment của bất kỳ ai khác, nói cách khác là outcome sẽ là một hàm số của riêng treatment mà chúng ta sử dụng. Nghĩa là 
+:::
+
+$$
+Y_i(t_1,\dots,Y_{i-1},Y_i,Y_{i+1}) = Y_i(t_i)
+(\#eq:410)
+$$ 
+::::
+
+Tức nhiên quy ước này hoàn toàn có thể xảy ra, ví dụ như ta đi quẩy về và bị nhức đầu, nhưng cũng có thể trên đường chạy về nhà ta đã gặp một yếu tố nào khác ảnh hưởng như là trời mưa. 
+
+Và cuối cùng là quy ước _consistency_:
+
+:::: {.blackbox .important data-latex=""}
+::: {.center data-latex=""}
+**$\bigstar$ Consistency:** Nếu cho $T=t$ thì observed outcomes cũng chính là potential outcomes.
+:::
+
+$$
+(Y|T=t) = (Y(t)|T=t).
+(\#eq:411)
+$$ 
+::::
+
+
+# Tổng kết
+
+Đối với causal inference ta phải xem xét đến một khái niệm gọi là __potential outcomes__, đây được xem là kết quả tiềm ẩn mà ta có thể nhận được khi can thiệp. "tiềm ẩn" nghĩa là chưa xảy ra, tất cả chỉ là cái mà chúng ta mong đợi sẽ có sau khi thực hiện can thiệp, nói cách khác potential outcomes là cái sẽ xuất hiện trong trạng thái lý tưởng, và trạng thái lý tưởng ấy nghĩa là với mỗi bệnh nhân hay đơn vị tham gia, ta đều mong đợi sẽ có 2 kết quả,mỗi kết quả tương ứng với mỗi can thiệp. Nhưng "life is not always perfect", ta sẽ không bao giờ có được kết quả lý tưởng đó, trong thực tế ta chỉ có thể quan sát 1 trong 2 kết quả mà thôi. Vì mỗi bệnh nhân là 1 cá nhân riêng biệt, không có phiên bản thứ 2, và 1 cá nhân cũng không thể làm thí nghiệm 2 lần, vì nếu thực hiện lại thì điều kiện bệnh nhân đã khác bởi các vấn đề như thời gian, tình trạng bệnh, tuổi tác v.v...
+
+Mối liên hệ cho phép ta đi từ trạng thái lý tưởng nhưng phi thực tế $[Y(1)$ và $Y(0)]$, sang trạng thái thực tế với các số liệu có thể tính toán ($Y|T=1$ và $Y|T=0$) là dựa trên 3 quy ước nền tảng: confoundedness, positivity và no interference, một khi ba quy ước này thỏa mãn, ta sẽ tính được những giá trị mong muốn dựa trên các số liệu thực tiễn.  
+
+Mục tiêu bài này là giới thiệu sơ lượt về suy luận nhân quả, nắm rõ được phần này ta sẽ dễ dàng tiếp cận nội dung bài tiếp theo về propensity score, một trong những phương pháp khá phổ biến để giảm độ nhiễu khi phân tích thống kê trong suy luận nhân quả. 
+
+<!-- ################################################################################################### -->
+# _References_ {-}

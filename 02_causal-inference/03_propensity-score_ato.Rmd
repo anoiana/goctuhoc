@@ -1,0 +1,637 @@
+---
+title: "&#128205;Propensity Score I"
+subtitle: '&#128205;The Average Treatment Effect for The Overlap Population (ATO) _(R)_'
+author: 👦🏻 $\mathcal{An}$
+date: "&#x1F4C5; _`r {
+if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
+update=FALSE
+filename=knitr::current_input(dir = FALSE)
+mylist <- readRDS(file ='date_list.rds')
+if(update|!(filename%in%names(mylist))){
+mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
+saveRDS(mylist, file = 'date_list.rds')}
+readRDS(file ='date_list.rds')[[filename]]  }`_"
+abstract: |
+header-includes:
+   - \usepackage{amsmath}
+   - \usepackage{titling}
+   - \pretitle{\begin{flushleft}}
+   - \posttitle{\end{flushleft}}
+   - \usepackage{eso-pic,graphicx,transparent}
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+        after_body: "../00_supp/mycomment.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+---
+ 
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("casual.jpg");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+::: {.watermark} 
+_DRAFT_
+:::
+
+```{r child="../00_supp/general_rmd.Rmd"}
+```
+
+# Balancing Weight 
+
+Ví dụ data có ba biến $\{(Y(t),X,T): t = 0 \lor 1 \}$, trong đó $Y(t)$ là potential outcome của treatment $t$, $T$ là biến binary nhận duy nhất 2 giá trị $0$ và $1$ đại diện cho nhóm control và treatment, cuối cùng $X$ là confounders (giả sử có duy nhất 1 confouder), để dễ hình dung ta cho $X$ thuộc biến rời rạc. Đại lượng ta muốn ước lượng là 
+$$
+\tau(x) = \E[Y(1) - Y(0)|X=x],
+(\#eq:eq1)
+$$
+gọi là the _average treatment effect_ (ATE). 
+
+Dưới quy ước _unconfoundedness_ ta có $Y(0), Y(1) \indep T|X$, vì thế ta có thể viết lại `r lb(eq1)` như sau 
+$$
+\tau(x) = \E[Y(1)|T=1,X] - \E[Y(0)|T=0,X],
+(\#eq:eq2)
+$$
+còn gọi là _conditional average controlled difference_ (ACD).
+
+Một khái niệm nữa ta cần làm quen là _quần thể mục tiêu (target population)_ để chỉ quần thể ta muốn ước lượng. Nếu ta gọi $\P(X=x)$ là probability mass function (PMF) của $X$ (lưu ý nếu X là liên tục ta sẽ có probability density function (PDF) $f_X(x)$). Gọi $h(x)$ là một hàm số cho trước để quy định quần thể mục tiêu. Nghĩa là ta có $P(X=x)h(x)$ chính là PMF của quần thể mục tiêu, tùy vào định nghĩa của $h(x)$ ta sẽ có các quần thể mục tiêu khác nhau. Khi đó ứng với mỗi một giá trị của $x$ ta sẽ tính được một giá trị của $\tau(x)$. Ta có kỳ vọng của $\tau(x)$ là 
+$$
+\begin{split}
+\tau_h =  \frac{\sum_{i=1}^n \tau(x_i)\P(X=x_i)h(x_i)}{\sum_{i=1}^n\P(X=x_i)h(x_i)},~~~\textrm{(rời rạc)};~~~
+\tau_h = \frac{\int\tau(dx)f_X(x)h(x)\mu(dx)}{\int f_X(x)h(x)\mu(dx)},~~~ \textrm{(liên tục)}
+\end{split}
+(\#eq:eq3)
+$$
+trong trường hợp rời rạc ta có thể xem $\P(X=x)h(x) = w_i$ như vậy ta có thể viết lại là $\tau_h = \frac{\sum \tau(x_i)w_i}{\sum w_i}$. 
+
+Câu hỏi đặc ra là làm cách nào để xác định $\{w_i: i = 1,2,\dots,n\}$. Ta có 
+
+$$
+\begin{split}
+\P(X=x|T=1) &=  \frac{\P[T=1|X=x]\P(X=x)}{\P(T=1)}, ~~~~~\text{(công thức Bayes)} \\
+&\propto \P[T=1|X=x]\P(X=x) \\
+&= e(x)\P(X=x)
+\end{split}
+(\#eq:eq4)
+$$
+tương tự 
+$$
+\P[X=x|T=0] \propto [1-e(x)]\P(X=x)
+(\#eq:eq5)
+$$
+
+Như vậy ta có thể xấp xỉ được weight của các units như sau 
+
+$$
+\begin{split}
+&w_1(x) = \frac{1}{e(x)} = \frac{\P(X=x)h(x)}{\P(X=x)e(x)} = \frac{h(x)}{e(x)} \\
+&w_0(x) = \frac{1}{e(x)} = \frac{\P(X=x)h(x)}{\P(X=x)(1-e(x))} = \frac{h(x)}{1-e(x)}
+\end{split}
+(\#eq:eq6)
+$$
+
+`r lb(eq6)` gọi là _balancing weights_ vì nếu ta weighting phân bố của covariate $X$ bằng $w_1$ và $w_0$ thì ta sẽ có phương trình sau 
+
+$$
+\P(X=x|T=1)w_1(x) = \P(X=x|T=0)w_0(x) = P(X=x)h(x),
+$$
+có thể nói rằng phân bố của covariate $X$ giữa hai nhóm điều trị sẽ cân bằng sau khi  được điều chỉnh lại bằng $w_0$ và $w_1$.
+
+Như đã nói lúc đầu bằng cách định nghĩa $h(x)$ ta có thể xác định được target population. Ví dụ 
+
+1. Nếu $h(x) = 1$ thì target population chính là population pha trộn giữa treatment và control. Như vậy ta có weights và đại lượng của hiệu quả điều trị là 
+$$
+\begin{split}
+&\big[w_0,w_1\big] = \big[1/e(x), 1/1-e(x)\big] \\
+&\tau^{ATE}= \E[Y(1) - Y(0)]
+\end{split}
+(\#eq:eq7)
+$$ 
+2. Trong khi đó nếu $h(x) = e(x)$ ta có 
+$$
+\begin{split}
+&\big[w_0,w_1\big] = \big[1, e(x)/1-e(x)\big], \\
+&\tau^{ATT} = \E[Y(1) - Y(0)|T=1]
+\end{split}
+(\#eq:eq8)
+$$
+3. Tương tự nếu $h(x) = 1- e(x)$ ta sẽ có target population là population của control ($T=0$). 
+4. Ngoài ra $h(x)$ còn có 1 số dạng khác, ví dụ ta có $h(x) = \I(q < e(x) < 1 -q), 0 < q < 1/2$, thì ta có subpopulation với độ giống nhau khả thi của 2 nhóm điều trị ở một biến nào đó. 
+
+Ta có bảng sau [@li2017]
+
+```{r fig1, fig.cap="$h(x)$ _và target population_", echo=FALSE}
+d = tibble(
+  `target population` = c("combined","treated","control","overlap","truncated combined","matching"),
+  `h(x)` = c("$$1$$","$$e(x)$$", "$$1-e(x)$$", "$$e(x)(1-e(x))$$","$$\\mathbb{I}(q < e(x) < 1-q)$$", "$$\\min(e(x), 1-e(x))$$"),
+  `estimand` = c("ATE","ATT","ATC","ATO","",""),
+  `weight` = c("$$\\bigg(\\frac{1}{e(x)}, \\frac{1}{1-e(x)}\\bigg)$$",
+               "$$\\bigg(1, \\frac{e(x)}{1-e(x)}\\bigg)$$",
+               "$$\\bigg(\\frac{1-e(x)}{e(x)},1\\bigg)$$", 
+               "$$(1-e(x),e(x))$$",
+               "$$\\bigg(\\frac{\\mathbb{I}(q < e(x) < 1-q)}{e(x)}, \\frac{\\mathbb{I}(q < e(x) < 1-q)}{1-e(x)}\\bigg)$$",
+               "$$\\bigg(\\frac{\\min(e(x),1-e(x))}{e(x)},\\frac{\\min(e(x),1-e(x))}{1-e(x)}\\bigg)$$")
+)
+draw_table(d, resizable = T,columns = list(
+  `target population`= colDef(minWidth = 200), `h(x)` = colDef(minWidth = 200), 
+  `estimand` = colDef(minWidth = 100), `weight` = colDef(minWidth = 400)
+           )) 
+```
+để hiểu thêm về ATO, tham khảo @li2017.
+
+# Ví dụ minh họa
+
+## Nhắc lại một số điểm quan trọng
+
+Nếu mỗi bệnh nhân được chọn `r colorize('_ngẫu nhiên_', color = 'red')` vào một trong hai nhóm điều trị, active and control treatments, thì ta sẽ có 
+$$
+Y(1),Y(0) \indep T
+(\#eq:eq8001)
+$$
+vì thế đại lượng so sánh mong muốn là $\E[Y_i(1) - Y_i(0)]$ tương đương với 
+$$
+ATE = \E[Y|T=1] - \E[Y|T=0]
+(\#eq:eq8002)
+$$
+
+Đối với những observational data. không có yếu tố ngẫu nhiên, thì `r lb(eq8001)` không còn đúng, nên `r lb(eq8002)` không thể sử dụng. 
+
+Phương pháp giải quyết là  mặc dù `r lb(eq8001)` không đúng,  nhưng ta có thể giả sử rằng trong mỗi subpopulation được chia bởi các confounders thì `r lb(eq8001)` có thể đúng, nghĩa là 
+$$
+Y(1), Y(0) \indep T|X
+(\#eq:eq8003)
+$$
+
+Ta định nghĩa $e(x_i) = \P[T_i=1|X_i=x_i]$, xác suất một bệnh nhân được xếp vào nhóm active treatment dưới điều kiện của confounder $X$, thì bởi vì ta có thể chứng minh được rằng $e(X)$ là ước lượng đầy đủ (sufficient statistic) của $X$, nghĩa là $\E[Y(t)|X,e(X)] = \E[Y(t)|e(X)]$, nên ta sử dụng $e(X)$ để tính ATE. Như vậy, ta có thể ước lượng ATE như sau 
+
+$$
+\hat{ATE} = \frac{1}{n}\sum_{i=1}^n \frac{T_iY_i}{e(X_i)} - \frac{1}{n}\sum_{i=1}^n \frac{(1-T_i)Y_i}{1-e(X_i)}
+(\#eq:eq8004)
+$$
+hoặc là 
+
+$$
+\hat{ATE} = \bigg[\sum_{i=1}^n\frac{T_i}{e(X_i)}\bigg]^{-1}\sum_{i=1}^n \frac{T_iY_i}{e(X_i)} - \bigg[\sum_{i=1}^n\frac{1-T_i}{1-e(X_i)}\bigg]^{-1}\sum_{i=1}^n \frac{(1-T_i)Y_i}{1-e(X_i)}
+(\#eq:eq8005)
+$$
+`r lb(eq8004)` tương ứng với combined target population trong `r lb(fig1)`.
+
+Tiếp theo ta cần ước lượng $\hat{e}(X)$, ứng viên đầu tiên là sử dụng logistic model với biến phụ thuộc chính là treatment $T$. Như vậy, câu hỏi còn lại là model sẽ bao gồm bao nhiêu biến độc lập?! Bước này khá quan trọng vì nếu model ta chọn không tốt là ước lượng $\hat{e}(X)$ sẽ biased, và như thế ướng lượng $\hat{ATE}$ cũng sẽ biased. Ta có thể sử dụng những phương pháp trong model selection thông qua các thuật toán của machine learning như decision trees, boosting, random forest... để tìm ra những biến độc lập nào thật sự quan trọng đối với treatment $T$.  Ngoài ra ta cũng có thể sử dụng các phương pháp trong bayes model selection. 
+
+Bên cạnh đó ta cần những đại lượng để đánh giá độ cân bằng của hai nhóm treatments trước vào sau khi weighting. Tùy vào biến liên tục hay rời rạc mà ta lần lượt có công thức sau
+
+$$
+\begin{split}
+&d = 100\times\frac{\bar{X}_t - \bar{X}_c}{\sqrt{\frac{s^2_t + s^2_c}{2}}} \\
+&d = 100\times\frac{\hat{p}_t - \hat{p}_c}{\sqrt{\frac{\hat{p}_t(1-\hat{p}_t)+\hat{p}_c(1-\hat{p}_c)}{2}}}
+\end{split}
+(\#eq:eq8006)
+$$
+đối với các confounders trước khi weighting ta tính $\bar{X}$ và $\hat{p}$ như bình thường, nhưng sau khi weighting và có $\hat{e}(X)$ thì ta phải sử dụng weighted mean và weighted proportion. Lưu ý 2 công thức trên khác với t-statistic là không phụ thuộc vào kích cỡ mẫu. Khi code ta chỉ cần định nghĩa hàm tính weighted mean, weighted variance và weighted proportion, đối với trường hợp trước weighting, ta chọn $w_i=1$ với $i = 1,2,\dots,n$. 
+
+## R codes
+
+Data sử dụng trong phần minh họa này chính là `lalonde` trong package `cobalt`. Tất cả những thao tác và kết quả đều có thể dể dàng tính toán bằng cách sử dụng packages, tuy nhiên để hiểu rõ cơ cấu của từng thao tác ta sẽ tiến hành viết code, sau đó thì sẽ so sánh kết quả với các hàm trong packages. 
+
+```{r fig2, fig.cap="_data `lalonde` với outcome `re78`, treatment `treat` và 7 covariates trong đó 3 discrete và 4 continuous types_"}
+# installing required packages
+if(!require(pacman)) install.packages("pacman");pacman::p_load(
+cobalt, tidyverse, magrittr, reactable
+)
+# loading data
+data('lalonde', package = 'cobalt')
+# modify used set and assign to 'dat'
+dat = tibble(lalonde)%>%
+  mutate(across(race, ~as.numeric(.)-1))
+# draw table to show complete dataset
+draw_table(lalonde) # (from helper function list)
+```
+
+Dựa vào `r lb(fig2)` ta có  7 covariates trong đó 3 categorical variables là race, married và nodegree, còn 4 continuous variables là age, educ, re74 và re75. Để đơn giản ta sẽ chia ra làm 2 dataset dựa vào từng loại biến.
+
+```{r}
+results = list() # all results will be stored here
+x.cont = dplyr::select(dat, age,educ,re74,re75, treat) # continuous variables
+x.disc = dplyr::select(dat,race,married,nodegree, treat) # discrete variables
+```
+
+Đầu tiên ta kiểm tra các covariates bằng các đại lượng thống kê bao gồm kỳ vọng, phương sai của biến liên tục và tỉ lệ phân nhóm của biến rời rạc. 
+
+```{r fig3, fig.cap = "_đánh giá các biến pretreatment_"}
+
+# eval pretrt cont vars
+d_cont<-
+group_nest(x.cont, treat)%>%
+  mutate(stat = map(data, ~summarise_all(., list(mean =mean,sd = sd))%>% modify(round, digits =2)%>%
+                      {map2_df(.[,1:4],.[5:8], ~ str_c(.x," (",.y,")"))}%>%
+                      pivot_longer(everything(), names_to = "var", values_to = "stat")%>%
+                      mutate(var = str_remove_all(var,"_mean"))
+  ))%$%{`names<-`(stat, treat)}
+  
+
+# eval pretrt disc vars
+f = function(x, name = NULL){
+  lift_dv(tibble)(table(x, useNA = "ifany"))%>% 
+    pivot_longer(everything(),names_to = "group", values_to = "n")%>%
+    mutate(p = round(n*100/sum(n),2) )%>%
+    mutate(stat = paste0(n," (",p,"%",")"), .keep= 'unused')%>%
+    mutate(var = str_c(' \u00a0 \u00a0',group), .keep = "unused", .before =1)%>%
+    add_row(var = name, .before = 1)
+}
+d_disc<-
+  group_nest(x.disc,treat)%>%
+  mutate(data = `names<-`(data, treat))%>%
+  mutate(data = map(data, ~ imap_dfr(., ~f(.x,.y)) ))%$% data
+
+# combine both cont & disc cases
+d = map2(d_cont,d_disc, bind_rows)%>%
+  imap(~rename(.x, !!{{str_c("stat of treatment ",.y)}} := stat))%>%
+  {bind_cols(.[[1]],.[[2]][,-1])}%>%
+  mutate_all(~ ifelse(is.na(.),"",.) )
+
+# draw table
+draw_table(d, defaultPageSize = nrow(d))
+```
+
+Tiếp theo ta tính độ giống nhau giữa 2 nhóm điều trị. Ta có thể bắt đầu từ raw-data như trong `r lb(fig2)` để tính. Tuy nhiên ở đây ta sẽ sử dụng số liệu từ `r lb(fig3)` để tính, lưu ý data này bao gồm các biến dạng character, để tính toán ta cần trích lọc số liệu cần thiết và biến đổi thành numeric. 
+
+```{r fig4, fig.cap="_Đánh giá độ khác biệt giữa hai nhóm điều trị_"}
+
+f1<- function(x){
+map_if(x, ~str_detect(.,"%"),
+       ~(str_extract_all(., "(?<=\\().+(?=%)")[[1]])%>% {as.numeric(.)/100},
+       .else =~(str_extract_all(., "[:digit:]+\\.*[:digit:]+(?= )")[[1]])%>%
+         as.numeric()
+       )%>%
+  map_dbl(~ifelse(identical(.,numeric(0)),NA,. ))
+}
+
+f2 = function(x){
+  map_if(x, ~str_detect(.,"%"),
+       ~(str_extract_all(., "(?<=\\().+(?=%)")[[1]])%>% {as.numeric(.)/100}%>%{.*(1-.)/429},
+       .else =~(str_extract_all(., "(?<=\\().+(?=\\))")[[1]])%>%
+         {as.numeric(.)^2/2}
+       )%>%
+  map_dbl(~ifelse(identical(.,numeric(0)),NA,. ))
+}
+
+d2<-
+mutate(d, m1 = f1(`stat of treatment 0`), m2 = f1(`stat of treatment 1`),
+       v1 = f2(`stat of treatment 0`), v2 = f2(`stat of treatment 1`)
+       )%>%
+  mutate(difference = (m1-m2)/sqrt(v1+v2)  )
+
+
+draw_table(d2[,c(1,2,3,8)]%>% modify_if(is.numeric, round, digits = 3), defaultPageSize = nrow(d2),
+           defaultColDef = colDef(
+    style = function(value) {
+      if (!is.numeric(value)) return()
+      list(color = "red")
+    })
+           )
+```
+
+Cột màu đỏ trong `r lb(fig4)` cũng được hiểu là đánh giá độ cân bằng tại first moment ($\E(X)$), ta cung có thể đánh giá độ cân bằng ở mức second moment $(\E(X^2))$ thông qua phương sai bằng công thức sau 
+
+$$
+\hat{\Gamma} = \ln(\hat{\sigma}_t) - \ln(\hat{\sigma}_c)
+$$
+như vậy ta có 
+
+
+```{r fig5, fig.cap="_Đánh giá cân bằng ở mức first và second moment_"}
+
+d3<- mutate(d2, "$$\\hat{\\Gamma}$$" = log(v1/v2))
+draw_table(modify_if(d3[,c(1,2,3,8,9)],is.numeric,round, digits =3), defaultPageSize = nrow(d2), defaultColDef = colDef(
+    style = function(value) {
+      if (!is.numeric(value)) return()
+      list(color = "red")
+    }))
+```
+
+Bây giờ ta sẽ tiến hành ước lượng PS bằng logistic model, và sử dụng công thức tính _weight_ của ATO trong `r lb(fig1)` (các dạng weight khác có thể lần lượt sử dụng và so sánh kết quả. Nhớ rằng mục tiêu của ta là làm sao để phân bố của các biến trong hai nhóm điều trị phải ít khác biệt nhất có thể. Như vậy phương pháp nào đưa đến sự cân bằng tối đa giữa hai nhóm điều trị thì đó là phương phá phiệu quả.). Ta sẽ thực hiện bước này bằng hai cách, thứ nhất ta thực hiện bằng cách fit logistic model và thứ hai ta sẽ sử dụng packages `WeightIt`. 
+
+```{r fig6, fig.cap="_kết quả của weight được tính bằng hai cách_"}
+#using package
+dat = mutate(dat,across(.cols = c(treat,race,married,nodegree),factor))
+ps = WeightIt::weightit(treat~age+educ+race+married+nodegree+re74+re75, data = dat,
+                        estimand = "ATO", method = "ps")
+
+# manual
+fit = glm(treat~age+educ+race+married+nodegree+re74+re75, data = dat, family = binomial())
+mytreat = as.numeric(dat$treat)-1
+#w= mytreat/fit$fitted.values + (1-mytreat)/(1-fit$fitted.values)
+w = mytreat*(1-fit$fitted.values) + (1-mytreat)*fit$fitted.values
+draw_table(
+  tibble(`không sử dụng package` = w,`sử dụng package` = ps$weights)%>% modify(round, digits = 2)
+             )
+```
+
+Dựa vào `r lb(fig6)` ta thấy rằng weights được tính bằng hai cách là giống nhau. Tiếp theo ta sẽ tính lại các đánh giá cân bằng dựa trên PS vừa tính được. Tuy nhiên để tiện so sánh các hệ số cân bằng dựa trên các PS khác nhau ta sẽ viết một generic function như sau 
+
+```{r fig7, fig.cap="_Đánh giá độ khác biệt sau khi bổ sung PS_"}
+balancing = function(x.cont, x.disc,w){
+  
+  ess = round(sum(w)^2/sum(w^2))
+  w = w*ess/sum(w)
+  
+  # continuous 
+  x.cont1<- bind_cols(x.cont, w = w)
+d_cont<-
+group_nest(x.cont1, treat)%>%
+  mutate(stat = map(data, ~summarise_all(., list(mean =~weighted.mean(.,w),sd = ~sqrt(Hmisc::wtd.var(.,w)))) %>% modify(round, digits =2)%>%
+                      {map2_df(dplyr::select(., contains("mean")),dplyr::select(.,contains("sd")), ~ str_c(.x," (",.y,")"))}%>%
+                      pivot_longer(everything(), names_to = "var", values_to = "stat")%>%
+                      mutate(var = str_remove_all(var,"_mean"))
+  ))%$%{`names<-`(stat, treat)}
+
+
+# discrete
+f = function(x, name = NULL,w){
+  
+  tibble(group = x, w = w)%>%
+    group_by(group)%>%
+    summarise(n = round(sum(w)))%>%
+    mutate(p = round(n*100/sum(n),2) )%>%
+    mutate(stat = paste0(n," (",p,"%",")"), .keep= 'unused')%>%
+    mutate(var = str_c(' \u00a0 \u00a0',group), .keep = "unused", .before =1)%>%
+    add_row(var = name, .before = 1)
+}
+x.disc1<- bind_cols(x.disc, w= w)
+d_disc<-
+  group_nest(x.disc1,treat)%>%
+  mutate(data = `names<-`(data, treat))%>%
+  mutate(data = map(data, ~{
+    x = .
+    imap(dplyr::select(x,-w), ~f(.x,.y,w = x$w))%>% bind_rows()
+    })) %$% data
+
+d = map2(d_cont,d_disc, bind_rows)%>%
+  imap(~rename(.x, !!{{str_c("stat of treatment ",.y)}} := stat))%>%
+  {bind_cols(.[[1]],.[[2]][,-1])}%>%
+  mutate_all(~ ifelse(is.na(.),"",.) )
+#--------------------------------------------
+f1<- function(x){
+map_if(x, ~str_detect(.,"%"),
+       ~(str_extract_all(., "(?<=\\().+(?=%)")[[1]])%>% {as.numeric(.)/100},
+       .else =~(str_extract_all(., "[:digit:]+\\.*[:digit:]+(?= )")[[1]])%>%
+         as.numeric()
+       )%>%
+  map_dbl(~ifelse(identical(.,numeric(0)),NA,. ))
+}
+
+f2 = function(x){
+  map_if(x, ~str_detect(.,"%"),
+       ~(str_extract_all(., "(?<=\\().+(?=%)")[[1]])%>% {as.numeric(.)/100}%>%{.*(1-.)/429},
+       .else =~(str_extract_all(., "(?<=\\().+(?=\\))")[[1]])%>%
+         {as.numeric(.)^2/2}
+       )%>%
+  map_dbl(~ifelse(identical(.,numeric(0)),NA,. ))
+}
+d2<-
+mutate(d, m1 = f1(`stat of treatment 0`), m2 = f1(`stat of treatment 1`),
+       v1 = f2(`stat of treatment 0`), v2 = f2(`stat of treatment 1`)
+       )%>%
+  mutate(difference = (m1-m2)/sqrt(v1+v2)  )
+
+d3<- mutate(d2, "$$\\hat{\\Gamma}$$" = log(v1/v2))
+return(filter(d3, var!= "w"))
+}
+
+d3<-balancing(x.cont, x.disc, w = w)
+
+draw_table(modify_if(d3[,c(1,2,3,8,9)],is.numeric,round, digits =3), defaultPageSize = nrow(d2), defaultColDef = colDef(
+    style = function(value) {
+      if (!is.numeric(value)) return()
+      list(color = "red")
+    }))
+```
+
+Dựa vào `r lb('fig7')` ta thấy rằng dưới ảnh hưởng của PS, phân bố của các biến trước thí nghiệm của hai nhóm điều trị hoàn toàn giống nhau ở moment đầu tiên. Ta cũng có thể sử dụng package `cobalt` để đánh giá độ cân bằng
+
+```{r}
+bal.tab(treat ~ age+ educ+ race+ married+ nodegree+ re75+ re75, data = dat, weights = w)
+```
+
+Trong kết quả trên ta có thêm một đại lượng nữa là effective sample size (ESS), đại lượng này cho ta biết kích cỡ mẫu tương đương trong thực tế khi mà phân bố của các covariates giữa hai nhóm điều trị được cân bằng. Rõ ràng để cân rằng, thì kích cỡ mẫu đã giảm từ $614$ xuống $311$.
+Điều này có thể hiểu là sau khi cân bằng, một số các bệnh nhân có khác biệt quá lớn giữa hai nhóm điều trị đã được loại bỏ. Công thức của ESS là 
+$$
+ESS = \frac{\Big(\sum_{i=1}^n w_i\Big)^2}{\sum_{i=1}^n w_i^2}.
+$$
+
+Như vậy, bước còn lại chính là phân tích để so sánh hai nhóm điều trị. Sử dụng `r lb('eq8004')` hoặc `r lb('eq8005')` để ước lượng hiệu quả điều trị và đưa ra kết luận.  
+
+# Kết Luận 
+
+Trên đây ta chỉ sử dụng các bước đơn giản và phổ biến nhất để tìm propensity score. Trong thực tế việc xác định model để ước lượng PS đòi hỏi nhiều kỹ năng hơn trong model selection và model evaluation. Ngoài ra cũng có nhiều nghiên cứu đã chỉ ra các ưu thế khi sử dụng các phương pháp trong machine learning để ước lượng PS, tuy nhiên ta sẽ không đi sâu vào các phương pháp cụ thể này. Ngoài ra các bước phân tích sensitivity sau khi đã có ước lượng của PS cũng rất quan trọng, ta sẽ tìm hiểu một vài phương pháp cụ thể ở những bài sau. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ################################################################################################### -->
+<!-- \stackrel{}{} -->
+
+# 📝 __*Reference & Appendix*__ { - .tabset .tabset-pills}
+
+## References {-}
+
+`r bring_rf_here()`
+
+## Appendix {-}
+
+Trong phần này ta sẽ có hai điểm cần chứng minh như sau 
+
+1. ước lượng $\hat{\tau}_h$ của $\tau_h$ là một ước lượng vững, nghĩa là $\E(\hat{\tau}_h) = \tau_h$.
+2. Khi kích cỡ mẫu đạt tới lý tưởng $(n \to \infty)$ thì kỳ vọng của phương sai của ước lượng $\hat{\tau}_t$ là một giá trị xác định, nghĩa là $\lim_{n \to \infty}\E[\V(\hat{\tau}_h)] < \infty$. 
+
+:::: {.blackbox}
+__Chứng minh rằng $\E(\hat{\tau}_h) = \tau_h$__
+
+Từ `r lb(eq3)` ta có  
+$$
+\begin{split}
+\tau_h 
+&=  \frac{\sum_{i=1}^n \tau(x_i)\P(X=x_i)h(x_i)}{\sum_{i=1}^n\P(X=x_i)h(x_i)} \\
+&= \frac{\sum_{i=1}^n\Big[\E[Y(1)|X] - \E[Y(0)|X]\Big]\P(X=x_i)h(x_i)}{\sum_{i=1}^n\P(X=x_i)h(x_i)}
+\end{split}
+$$
+
+Đầu tiên ta xét phần tử số 
+$$
+\begin{split}
+&\sum_{i=1}^n\Big[\E[Y(1)|X] - \E[Y(0)|X]\Big]\P(X=x_i)h(x_i) \\
+&\stackrel{(1)}{=} \sum_{i=1}^n \Big[\E[Y(1)|T=1,X] - \E[Y(0)|T=0,X]\Big]\P(X=x_i)h(x_i) \\ 
+&\stackrel{(2)}{=}  \sum_{i=1}^n \Bigg[ \frac{\E[Y(1)T|X]\P(X=x_i)h(x_i)}{e(x_i)} - \frac{\E[Y(0)(1-T)|X]\P(X=x_i)h(x_i)}{1-e(x_i)}\Bigg]
+\end{split}
+$$
+trong đó 
+
+- (1): sử dụng quy ước unconfoundedness.
+- (2): Ta có $\E(Y|T,X) = \frac{\E(YT|X)}{\P(T|X)} = \frac{\E(YT|X)}{e(X)}$
+
+Tiếp theo xét phần mẫu số. Ta biến đổi giống như phần tử số với $Y(1) = 1$, ta có 
+
+$$
+\begin{split}
+&\sum_{i=1}^n\P(X=x_i)h(x_i) = \sum_{i=1}^n \frac{\E[T|X]\P(X=x_i)h(x_i)}{e(x_i)}, ~~~\text{(treatment)} \\
+&\sum_{i=1}^n\P(X=x_i)h(x_i) = \sum_{i=1}^n \frac{\E[1-T|X]\P(X=x_i)h(x_i)}{1-e(x_i)}, ~~~\text{(control)}
+\end{split}
+$$
+
+Như vậy ta có thể ghi lại là 
+
+$$
+\tau_h = \frac{\sum_{i=1}^n \frac{\E[Y(1)T|X]\P(X=x_i)h(x_i)}{e(x_i)}}{\sum_{i=1}^n \frac{\E[T|X]\P(X=x_i)h(x_i)}{e(x_i)}} - \frac{\sum_{i=1}^n \frac{\E[Y(1)(1-T)|X]\P(X=x_i)h(x_i)}{1-e(x_i)}}{\sum_{i=1}^n \frac{\E[1-T|X]\P(X=x_i)h(x_i)}{1-e(x_i)}}
+(\#eq:eq9)
+$$
+Ta sẽ viết các kỳ vọng ở dạng trị số trung bình và thay $\frac{h(x)}{e(x)} = w_1(x)$ và $\frac{h(x)}{1-e(x)} = w_0(x)$, ta có 
+
+$$
+\begin{split}
+&\bullet \sum_{i=1}^n \frac{\E[Y(1)T|X]\P(X=x_i)h(x_i)}{e(x_i)} &&= \sum_{i=1}^n \E[Y(1)Tw_1(x_i)|X]\P(X=x_i) = \E\Big[\E[Y(1)Tw_1(x_i)|X]\Big] \\
+&&& = \E(Y(1)Tw_1(x_i))  = n\sum_{i=1}^n Y(1)Tw_1(x_i) \\
+&\bullet \sum_{i=1}^n \frac{\E[T|X]\P(X=x_i)h(x_i)}{e(x_i)} &&= n\sum_{i=1}^nTw_1(x_i) \\
+&\bullet\sum_{i=1}^n \frac{\E[Y(0)T|X]\P(X=x_i)h(x_i)}{1-e(x_i)} &&= \sum_{i=1}^n \E[Y(0)Tw_0(x_i)|X]\P(X=x_i) = \E\Big[\E[Y(0)Tw_0(x_i)|X]\Big] \\
+&&& = \E(Y(0)Tw_0(x_i))  = n\sum_{i=1}^n Y(0)Tw_0(x_i) \\
+&\bullet \sum_{i=1}^n \frac{\E[T|X]\P(X=x_i)h(x_i)}{1-e(x_i)} &&= n\sum_{i=1}^nTw_0(x_i) \\
+\end{split}
+$$
+như vậy 
+$$
+\hat{\tau}_h = \frac{\sum_{i=1}^n Y_i(1)T_iw_1(x_i)}{\sum_{i=1}^n T_iw_1(x_i)} - \frac{\sum_{i=1}^n Y_i(0)T_iw_0(x_i)}{\sum_{i=1}^n T_iw_0(x_i)}
+(\#eq:eq10)
+$$
+`r rs('\\square')`
+::::
+
+:::: {.blackbox}
+
+__Chứng minh rằng $\lim_{n \to \infty}\E[\V(\hat{\tau}_h|X)] < \infty$__
+
+Ta sẽ bắt đầu từ `r lb(eq10)` bằng cách tính phương sai của $\hat{\tau}_h|T,X$, ta có 
+$$
+\begin{split}
+\V[\hat{\tau}_h|X,T] &= \frac{\sum_{i=1}^n\vartheta_1(x_i)T_iw^2_1(x_i)}{\Big[\sum_{i=1}^nT_iw_1(x_i)\Big]^2} - \frac{\sum_{i=1}^n\vartheta_0(x_i)T_iw^2_0(x_i)}{\Big[\sum_{i=1}^nT_iw_0(x_i)\Big]^2}
+\end{split}
+(\#eq:eq11)
+$$
+
+Ta sẽ xem xét phân thức thứ nhất ở vế phải của `r lb(eq11)`, phân thức còn lại được biến đổi tương tự, ta có 
+
+$$
+\begin{split}
+\frac{\sum_{i=1}^n\vartheta_1(x_i)T_iw^2_1(x_i)}{\Big[\sum_{i=1}^nT_iw_1(x_i)\Big]^2} &= \frac{\sum_{i=1}^n\vartheta_1(x_i)T_iw^2_1(x_i)\Big/n}{n\Big[\frac{1}{n}\sum_{i=1}^nT_iw_1(x_i)\Big]^2} 
+\end{split}
+$$
+
+Đầu tiên ta xem xét phần tử số 
+$$
+\begin{split}
+\sum_{i=1}^n\vartheta_1(x_i)T_iw^2_1(x_i)\Big/n &\rightarrow
+\E\big[\vartheta_1(x_i)T_iw^2_1(x_i)\big] \\ &= \E\Big[\E\big[\frac{\vartheta_1(x_i)}{e(x_i)}\frac{T_i}{e(x_i)}h^2(x_i)\big|X \big]\Big]\\ &= 
+\E\Big[\frac{\vartheta_1(x_i)}{e(x_i)}h^2(x_i)\E\big[T_i/e(x_i)\big]\Big] \\ &=
+\E\Big[\frac{\vartheta_1(x_i)}{e(x_i)}h^2(x_i)\Big] \\ &=
+\int\frac{\vartheta_1(x)}{e(x)}h^2(x)f(x)\mu(dx).
+\end{split}
+$$
+
+Tiếp theo xem xét mẫu số, ta có 
+$$
+\begin{split}
+\Big[\frac{1}{n}\sum_{i=1}^nT_iw_1(x_i)\Big]^2 &\rightarrow 
+\big\{\E[T_iw_1(x_i)]\big\}^2\\ &= 
+\Bigg\{\E\Big[\E\Big(\frac{T_i}{e(x_i)}h(x_i)\Big|X\Big)\Big]\Bigg\}^2 \\ &=
+\Bigg\{\E\Big[h(x_i)\E\Big(\frac{T_i}{e(x_i)}\Big)    \Big]  \Bigg\}^2 \\ &=
+\Big\{\E[h(x_i)]  \Big\}^2 \\ &=
+\Big\{\int h(x)f(x)\mu(dx)\Big\}^2 \\ &=
+C_h^2
+\end{split}
+$$
+
+Như vậy theo Slutsky's theorem ta có:
+
+$$
+\frac{\sum_{i=1}^n\vartheta_1(x_i)T_iw^2_1(x_i)}{\Big[\sum_{i=1}^nT_iw_1(x_i)\Big]^2} \rightarrow
+\frac{\int\frac{\vartheta_1(x)}{e(x)}h^2(x)f(x)\mu(dx)}{\Big\{\int h(x)f(x)\mu(dx)\Big\}^2}
+$$
+
+Tương tự ta có thể tính được phân tức thứ 2 trong vế phải của `r lb(eq11)` là 
+
+$$
+\frac{\sum_{i=1}^n\vartheta_0(x_i)T_iw^2_1(x_i)}{\Big[\sum_{i=1}^nT_iw_1(x_i)\Big]^2} \rightarrow
+\frac{\int\frac{\vartheta_0(x)}{1-e(x)}h^2(x)f(x)\mu(dx)}{\Big\{\int h(x)f(x)\mu(dx)\Big\}^2}
+$$
+
+Như vậy
+
+$$
+n\V[\hat{\tau}_h] \rightarrow
+\frac{\int\Big(\frac{\vartheta_1(x)}{e(x)}+\frac{\vartheta_0(x)}{1-e(x)}\Big)h^2(x)f(x)\mu(dx)}{\Big\{\int h(x)f(x)\mu(dx)\Big\}^2}
+$$
+`r rs('\\square')`
+
+Nếu $\vartheta_1(x) = \vartheta_0(x) = \vartheta$, ta có 
+
+$$
+n\V[\hat{\tau}_h] = \frac{\vartheta}{C^2_h}\frac{\int h^2(x)f(x)\mu(dx)}{e(x)[1-e(x)]}
+(\#eq:eq12)
+$$
+`r rs('\\square')`
+::::
+
+
+
+

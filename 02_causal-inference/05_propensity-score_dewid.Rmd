@@ -1,0 +1,736 @@
+---
+title: "&#128205;Propensity Score II"
+subtitle: "&#128205;Causal Inference Theo Quan Niệm Của Dawid (I)"
+author: 👦🏻 $\mathcal{An}$
+date: "&#x1F4C5; _`r {
+if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
+update=FALSE
+filename=knitr::current_input(dir = FALSE)
+mylist <- readRDS(file ='date_list.rds')
+if(update|!(filename%in%names(mylist))){
+mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
+saveRDS(mylist, file = 'date_list.rds')}
+readRDS(file ='date_list.rds')[[filename]]  }`_"
+abstract: |
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: espresso
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: ["../00_supp/header.html"]
+        before_body: "test.html"
+        after_body: "../00_supp/mycomment.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+---
+
+\def\emp{\varnothing}
+\usepackage{extarrows}
+ 
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("casual.jpg");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+```{r child="../00_supp/general_rmd.Rmd"}
+```
+
+::: {.watermark} 
+_BẢN RAW_
+
+_(chưa edit)_
+
+_(chưa hoàn thành)_
+:::
+
+# Giới thiệu
+
+Theo quan niệm của Dawid thì ông chia các biến nhân quả ra thành ba không gian riêng biệt. 
+
+1. $T = \varnothing$, không gian được quan sát. Trong không gian này mỗi bệnh nhân được chọn vào nhóm treatment hay control một cách tự nhiên.
+2. $T = 1$: không gian can thiệp. bệnh nhân được xếp vào nhóm treatment.
+3. $T=0$: không gian can thiệp. bệnh nhân được xếp vào nhóm control. 
+
+```{r echo=FALSE, fig.height=2.8, fig.cap="_minh họa ba không gian: observational, treatment và control_"}
+my_circle = function(color = c("white","white"), draw = "full"){
+  
+  color = switch((length(color)==1)+1,color,c(color,color))
+  
+  sh = tibble(x = seq(-1,1,length.out = 500))%>%
+  mutate(y = sqrt(1-x^2), y2 =-y)
+
+p<-
+ggplot(data = data.frame(x = 0, y = 0), mapping = aes(x = x, y = 0))+
+  stat_function(fun =  function(x) (sqrt(1-x^2)), size = 2, color = "grey")+
+  xlim(-1,1) + ylim(-1,1)+ theme_void()
+
+
+if(draw == "full"){
+  p = p + stat_function(fun =  function(x) -(sqrt(1-x^2)), size = 2, color = "grey")
+  p+geom_area(data = sh, aes(x = x,y = y), fill = color[1])+
+    geom_area(data = sh, aes(x = x,y = y2), fill = color[2])
+}
+else if(draw == "upper"){
+   p+geom_area(data = sh, aes(x = x,y = y), fill = color[1])
+}
+else if(draw == "lower"){
+    ggplot(data = data.frame(x = 0, y = 0), mapping = aes(x = x, y = 0))+
+    stat_function(fun =  function(x) -(sqrt(1-x^2)), size = 2, color = "grey")+
+    xlim(-1,1) + ylim(-1,1)+ theme_void()+
+    geom_area(data = sh, aes(x = x,y = y2), fill = color[2])
+}
+
+
+}
+
+p2 = my_circle(c("pink","grey"))+ggtitle("không gian\n observational")
+p3 = my_circle("pink") + ggtitle("không gian\n treatment")
+p4 = my_circle("grey" )+ ggtitle("không gian\n control")
+
+gridExtra::grid.arrange(p2,p3,p4, ncol = 3)
+```
+
+Ta cũng có thể ký hiệu chung cho không gian can thiệp là $T=t$
+
+Như vậy nếu như nhìn trong không gian $F_T=\varnothing$ thì đó chính là quan sát có hiện diện thực tế (factual), ngược lại trong không gian $F_T=1$ thì các bệnh nhân sẽ luôn thuộc nhóm treatments. Giải thích tương tự cho không gian của control. 
+
+Bởi vì có 3 không gian riêng biệt nên nguyên lý chung là làm cách nào để ta có thể chuyển từ không gian intervention sang không gian observational và dựa trên không gian này để đưa ra suy luận về 2 không gian còn lại. Nhắc lại về mục tiêu mà ta cần suy luận được biểu diễn dưới công thức sau 
+
+$$
+ACE := \E(Y|F_T=1) - \E(Y|F_T=0)
+(\#eq:1)
+$$
+trong đó $ACE$ là _the population-based average causal effect_ ta có thể viết lại công thức trên ngắn gọn là 
+$$
+ACE := \E_1(Y) - \E_0(Y)
+(\#eq:2)
+$$
+nghĩa là ta chỉ sử dụng số liệu từ không gian intervention, tuy nhiên ta chỉ có số liệu từ không gian observational. Để xác định $ACE$ ta cần một vài quy ước để chuyển từ không gian intervention sang không gian observational. Nói cách khác là ta phải tìm được mối quan hệ giữa ba không gian này. Nếu như ta định nghĩa giá trị cần tính trong không gian observational là _face-value average causal effect_ (FACE)
+
+$$
+FACE = \E_{\emp}(Y) - \E_{\emp}(Y)
+(\#eq:3)
+$$
+
+Tức nhiên ta không thể mong đợi rằng $FACE = ACE$. Để có thể tính toán $ACE$ dựa trên $FACE$ ta cần phải: (1) điều chỉnh các confounders và (2) biến đổi các thông tin phân bố giữa các không gian. 
+
+# Xác Định ACE 
+
+## sufficient covariate (biến đầy đủ) {#sec21}
+
+:::: {.blackbox .mathematics}
+::: {.center}
+_phần này dựa trên @hui2010 _
+:::
+Trong phần này ta sẽ lần lượt giới thiệu đến các định lí, quy ước là nền tảng của causal inference cũng như sẽ chứng minh những đĩnh lí đó. Đầu tiên ta sẽ giới thiệu đến 3 định nghĩa về covariate $X$ (hay còn gọi là confounders).
+
+```{definition, name = "Đặc tính thứ nhất", label = "dn1"}
+$X$ là covariate nếu 
+$$
+X \indep F_T
+$$
+nghĩa là phân bố của $X$ giống nhau trong bất kỳ không gian nào. Lấy ví dụ như giới tính của bệnh nhân là một covariate, thì tỉ lệ nam:nữ của các bệnh nhân trong ba không gian đều phải giống nhau. 
+```
+
+```{definition, name = "Đặc tính thứ hai", label = "dn2"}
+$X$ gọi là sufficient covariate of $T$ trên $Y$ nếu định nghĩa 1 thoả và cộng thêm điều kiện bên dưới
+$$
+Y \indep F_T|(X,T),
+$$
+điều kiện này có thể giải thích là Nếu ta biết được các bệnh nhân thuộc nhóm điều trị $\{t: t = 0 \vee 1\}$ và có đặc tính $x$, nếu $X$ là giới tính thì $X=x$ là nam hoặc nữ, thì outcomes của những bệnh nhân này giống nhau trong cả ba không gian.
+```
+
+```{definition, name = "Đặc tính thứ ba", label = "dn3"}
+$X$ được gọi là strongly sufficient covariate nếu như 2 định nghĩa trên đúng và cộng thêm một điều kiện là 
+$$
+\P_{\emp}(T=t|X) >0
+$$
+nghĩa là với bất kỳ một giá trị $X=x$ nào (ví dụ tập hợp các bệnh nhân nam hoặc nữ) thì trong không gian observational đều phải tồn tại cả treatment và control. 
+```
+Dựa trên 3 định nghĩa cơ bản ở trên, ta sẽ lần lượt đi chứng minh những kết quả quan trọng sau đây.
+
+```{lemma, label="lemma1"}
+Giả sử $X$ là strongly sufficient covariate. Nếu như xác suất của một sự kiện nào đó trong không gian observational bằng $0$ thì xác suất của sự kiện đó trong không gian intervention cũng bằng $0$. Nghĩa là 
+$$
+\P_{\emp}(S) = 0 \Rightarrow \P_t(S) = 0  
+(\#eq:4)
+$$
+```
+
+Lưu ý trong `r lb(lem,lemma1)` cũng nói lên rằng $\P_{\emp}(S') = 1 \Rightarrow \P_t(S') = 1$. Ta có thể chứng minh như sau 
+
+Đầu tiên ta nhận thấy rằng, theo `r lb(def,dn2)`, tức là $Y \indep F_T|(X,T)$, ta có thể viết thành $(Y,X,T) \indep F_T|(X,T)$, để hiểu tại sao có thể viết lại như thế chúng ta hãy xem xét ví dụ sau
+
+```{example, label="exm1"}
+Xét hàm số $f(Y)$ sao cho $f(Y) \indep F_T|(X=x,T=t)$. Vì $(x,t)$ được cho biết trước nên nó là hằng số (có thể hiểu là các bệnh nhân thuộc nhóm treatment và là nam), nên $F(Y,x,t)$ cũng là một hàm số của $Y$ (không xem xét $(x,t)$ vì chúng không còn là biến số). Như vậy $f(Y)$ hay $f(Y,x,t)$ cũng chỉ làm hàm số phụ thuộc lên một biến $Y$ duy nhất, và vì là 1 hàm số của $Y$ nên nó cũng mang tính chất giống $f(Y)$, đó là độc lập với $F_T$.
+```
+
+Nếu như $A$ là một sự kiện nào đó được tạo hành từ $(X,T,Y)$ thì $A$ phải độc lập với $F_T$. Nghĩa là 
+$$
+\P_T(A|X,T)  \overset{a.s}{=} g(X,T)~~~\forall~~T \in \{\emp, 0, 1\}
+$$
+
+Tiếp theo giả sử ta có $\P_{\emp}(A) = 0$. Thì 
+
+$$
+\begin{split}
+0 &= \P_{\emp}(A) \\
+&= \E[\P_{\emp}(A|X=x)\big] \\
+&= \E\Big[\E[\P_{\emp}(A|x,T)|X=x]\Big]  \\
+&= \E\Big[\P_{\emp}(A|X=x,T=0)\P_{\emp}(T=0|X=x)+\P_{\emp}(A|X=x,T=1)\P_{\emp}(T=1|X=x)\Big] \\
+&= \sum\Big[\P_{\emp}(A|X=x,T=0)\P_{\emp}(T=0|X=x) +\\ &+\P_{\emp}(A|X=x,T=1)\P_{\emp}(T=1|X=x)\Big]\P_{\emp}(X=x) \\
+&= \sum\Big[g(x,0)\P_{\emp}(T=0|X=x) + g(x,1)\P_{\emp}(T=1|X=x)\Big]\P_{\emp}(X=x) 
+\end{split}
+(\#eq:5)
+$$
+
+theo tính chất của `r lb(def,dn3)` thì $\P(T=t|X=x) > 0$ và $\P(X=x)$ tức nhiên cũng sẽ khác $0$, nên `r lb(eq,"5")` đúng khi và chỉ khi $g(x,0) = g(x,1) = 0$ hay 
+
+$$
+g(X,t) = 0
+(\#eq:6)
+$$
+Ta cũng thấy rằng `r lb(eq,"6")` là hàm số của $X$, vì thế theo `r lb(def,dn1)` thì $g(X,t) \indep F_T$ nghĩa là `r lb(eq,"6")` đúng trong không gian intervention. Trong khi đó trong không gian intervention ta cũng có 
+
+$$
+\P_t(A) = \E\big[\P_t(A|X,t)\big] = \E\big[g(X,t)\big] = 0, 
+$$
+_(lưu ý trong `r lb('eq','5')` ta sử dụng summation cho dể hiểu, để chính xác ta phải ghi dưới dạng tích phân)_ 
+
+`r rs("\\square")`
+
+Tiếp theo ta chứng minh bổ đề sau 
+
+```{lemma, label="lemma2"}
+Lấy $Z= h(X,Y,T)$, $h$ tuỳ ý, ta luôn có 
+$$
+E_t(Z|X) \stackrel{a.s}{=} E_t(Z|X,T).
+$$
+```
+
+__Chứng minh:__ Lấy $k(T,X)$, $k$ tuỳ ý, là một hàm số đại diện cho $\E_t(Z|T,X)$, nếu ta xét trong không gian intervention $t$ thì $k(T,X) = k(t,X)$, như vậy ta thấy rằng
+
+$$
+\E_t(Z|X) = \E_t\big[k(T,X)|X\big] \stackrel{a.s}{=} \E_t\big[k(t,X)|X\big] = k(t,X).
+$$
+
+Như vậy $k(t,X)$ cũng là một hàm số đại diện cho $\E_t(Z|X)$. `r rs("\\square")`
+
+Tiếp theo ta sẽ chứng minh một định lí cực kỳ quan trọng, nó tương đương với giả thuyết _unconfoundedness_. Định lí được phát biểu như sau 
+
+```{theorem, label = "thm1"}
+Giả sử $X$ là strongly sufficient covariate. Ta có
+
+$$
+\E_t(Z|X) = \E_{\emp}(Z|X,T)
+(\#eq:7)
+$$
+```
+
+__Proof.__  Dưới điều kiện của $(T,X)$ thì tồn tại hàm số $h(T,X)$ đại diện cho $\E_t(Z|T,X)$ với $t \in \{\emp, 0,1\}$. 
+
+Đầu tiên ta xét trong không gian observational, nếu tồn tại một hàm $r(T,X)$ là đại diện cho $\E_{\emp}(Z|T,X)$ thì theo `r lb(lem,lemma1)` nếu $\P_{\emp}(A) = \P_{\emp}[h(T,X) - g(T,X) =0] = 1$, thì $\P_{t}(A) = \P_{t}[h(T,X) - g(T,X)=0] = 1$. Nghĩa là $h(T,X) = g(T,X)$ trong không gian intervention. Mặc khác trong không gian intervention thì $T=t$ nên cả $h(t,X)$ và $g(t,X)$ đều làm hàm của $X$. Vì vậy theo `r lb(def,dn1)` thì 
+
+$$
+h(T,X) = g(T,X) \text{ trong cả 3 không gian.}
+(\#eq:8)
+$$ 
+
+Tiếp theo, xét không gian intervention, thì cũng tồn tại hàm $k(T,X)$ đại diện cho $\E_t(Z|T,X)$. vậy nên 
+
+$$
+h(T,X) = k(T,X) \text{ trong không gian intervention}
+$$
+
+Vì không gian intervention $T=t$ xác định, nên 
+
+$$
+h(t,X) = k(t,X) \text{ trong không gian intervention}
+$$
+
+Và vì $t$ xác định nên cả $h(t,X)$ và $k(t,X)$ đều là hàm số của $X$, theo `r lb(def,dn1)` 
+
+$$
+h(T,X) = k(T,X) \text{ trong cả 3 không gian.}
+(\#eq:9)
+$$
+
+Từ `r lb(eq,"8")` và `r lb(eq,"9")` ta có thể kết luận $g(T,X) = k(T,X)$. Theo `r lb(lem,lemma2)` thì $k(T,X) = \E_t(Z|T)$ nên ta kết luận rằng
+
+$$
+\E_t(Z|X) = \E_{\emp}(Z|X,T)
+$$
+::::
+
+## Kỳ vọng của đại lượng nhân quả dưới điều kiện của confounders {#sec22}
+
+Trong phần \@ref(sec21) ta đã chứng mình một định lí quan trọng, đó là 
+
+$$
+\E_t(Z|X) = \E_{\emp}(Z|X,T),
+(\#eq:10)
+$$
+dựa trên 3 tính chất cơ bản là 
+
+1. $X$ được gọi là covariates nếu $X \indep F_T$.
+2. $X$ được gọi là sufficient covariates của $T$ trên $Y$ nếu tính chất 1 thỏa mãn và $Y \indep F_T|X,T$.
+3. $X$ được gọi là strongly sufficient covariates nếu như 2 tính chất trên thỏa mãn và $\P_{\emp}[T=t|X]>0$.
+
+Ta có thể dễ dàng nhận thấy `r lb(eq,"10")` tương đương với quy ước _unconfoundedness_ trong bài trước. Đây cũng là quy ước quan trọng nhất trong cả 3 quy ước đã nói đến bởi vì nó cho phép ta tính toán và đưa ra kết luận về quan hệ nhân quả của không gian interventional dựa trên không gian observational.
+
+Dựa trên không gian của observational ta sẽ định nghĩa kỳ vọng của nhân quả dưới điều kiện của confounders như sau 
+
+$$
+SCE(x) = \E_1[Y|X] - \E_0[Y|X],
+$$
+$SCE(x)$ là một hàm số của $x$, tùy thuộc vào giá trị của $x$ (ví dụ nhóm bệnh nhân là nam hay nữ), ta sẽ có giá trị $SCE(x)$ khác nhau. Ta có thể chứng minh rằng $ACE$ trong `r lb(eq,'1')` hay `r lb(eq,'2')` tương đương với kỳ vọng của $SCE(x)$, nghĩa là $ACE = \E[SCE(x)]$. Ta có 
+
+$$
+\begin{split}
+\E[SCE(x)] &= \E_{\emp}[\E_1(Y|X)] - \E_{\emp}[\E_0(Y|X)]  \\
+&\overeq{(1)}{=} \E_1[\E_1(Y|X)] - \E_0[\E_0(Y|X)] \\
+&= \E_1[Y] - \E_0[Y] \\
+&= ACE,
+\end{split}
+$$
+trong đó $(1)$ dựa trên  đặc tính của `r lb(def,'dn1')` và vì $E_{t \in \{0,1\}}[Y|X]$ là một hàm số của $X$. 
+
+# Phân tích Propensity
+
+## Biến propensity và propensity score
+
+Đầu tiên ta hãy bắt đầu với khái niệm _balancing score_ $b(X)$ 
+
+:::: {.blackbox}
+```{definition, name = "Balancing score", label = "def4"}
+$b(X)$ là một hàm số của $X$, nếu xét trong không gian observational thì phân bố của $X$ dưới điều kiện của $b(X)$ độc lập với treatment $T$, nghĩa là
+$$
+X \indep T|b(X),F_T = \emp  
+$$
+```
+::::
+
+Từ `r lb(def4)` ta có thể chứng minh được 
+
+$$
+Y \indep F_T|(b(X),T).
+(\#eq:eq11)
+$$
+
+`r lb(eq11)` này rất quan trọng vì nó cho phép ta đưa ra kết luận nhân quả dựa trên không gian observational dưới điều kiện của $b(X)$.
+
+:::: {.blackbox .mathematics}
+::: {.center}
+(có thể bỏ qua)
+:::
+Dựa vào `r lb(def4)` ta có thể suy ra rằng 
+$$
+X \indep T|[b(X),F_T], \forall F_T,
+(\#eq:eq11001)
+$$
+nghĩa là $X$ độc lập với $T$ trong cả ba không gian, vì ta luôn có $T \indep X|F_T \in \{0,1\}$ _(nhớ lại định nghĩa của không gian interventional!!!)_. Lấy một ví dụ đơn giản là $X$ đại diện cho giới tính, nếu ta xét trong không gian interventional $F_T = 1$, nghĩa là tất cả bệnh nhân đều được xếp vào nhóm active. Khi đó dù ta xét nhóm các bệnh nhân nam hay nhóm các bệnh nhân nữ thì xác suất để bệnh nhân nhận điều trị luôn là $1$. 
+
+Bây giờ ta cần chứng minh rằng nếu `r lb(eq11001)` thỏa thì ta có `r lb(eq11)`. Dựa vào đặc tính thứ 2, ta có 
+
+$$
+\begin{split}
+&Y\indep F_T |X,T\\ 
+\Rightarrow &Y \indep F_T|X,b(X),T ~~~\text{(vì b(X) là hàm số của X)}
+\end{split}
+(\#eq:eq12)
+$$ 
+
+Ngoài ra vì $b(X)$ là một hàm số của $X$ nên $X|b(X)$ cũng là một hàm số của $X$, nên dựa vào tính chất 1 thì 
+$$
+X \indep F_T|b(X),
+(\#eq:eq12001)
+$$
+kết hợp với `r lb(eq11001)` nên 
+
+$$
+X \indep (T,F_T)|b(X)
+(\#eq:eq13)
+$$
+bởi vì $\P[X|T,F_T,b(X)] \overset{pt~(3.2)}{=} \P[X|F_T,b(X)] \overset{pt~(3.4)}{=} \P[X|b(X)]$. 
+
+Từ `r lb(eq13)` ta có thể suy ra rằng $X \indep F_T|(b(X),T)$, kết hợp với điều kiện `r lb(eq12)` thì $(X,Y) \indep F_T|(b(X),T)$.
+
+Bởi vì
+$$
+\begin{split}
+&\P[Y|F_T,X,b(X),T] &\overset{(1)}{=}\P[Y|X,b(X),T] \\
+\Rightarrow &\frac{\P[X,Y|F_T,b(X),T]}{\P[X|F_T,b(X),T]} &= \frac{\P[X,Y|b(X),T]}{\P[X|b(X),T]} \\
+\overset{(2)}{\Rightarrow} &\frac{\P[X,Y|F_T,b(X),T]}{\P[X|b(X),T]} &= \frac{\P[X,Y|b(X),T]}{\P[X|b(X),T]} \\
+\Rightarrow &\P[X,Y|F_T,b(X),T] &=\P[X,Y|b(X),T] 
+\end{split}
+$$
+vì thế 
+$$
+\Rightarrow (X,Y) \indep F_T|(b(X),T)
+$$
+
+- (1): $Y \indep F_T|X,b(X),T$
+- (2): $X \indep F_T|(b(X),T)$
+
+Từ đó suy ra `r lb(eq11)`. `r rs('\\square')`
+::::
+
+Tiếp theo ta sẽ định nghĩa _Propensity scores_ như sau 
+
+::::{.blackbox}
+```{definition, name = "Propensity score", label = "def5"}
+_Propensity score_, ký hiệu là $e(X)$, chính là một hàm số của $X$ đại diện cho xác suất một bệnh nhân nào đó được xếp vào nhóm active trong không gian observational, nghĩa là 
+$$
+e(X) = \P_{\emp}[T=1|X]  
+$$
+```
+::::
+
+Với định nghĩa của PS như trên ta có thể chứng mình rằng PS chính là balancing score. Tức nhiên trong thưc tế ta sẽ không thể biết được $e(X)$ nhưng ta có thể ước lượng nó bằng cách sử dụng logistic model trong đó biến độc lập bao gồm các confounders, và biết phụ thuộc chính là treatment $T$. 
+
+::::{.blackbox .mathematics}
+:::{.center}
+`r colorize('Để chứng minh định nghĩa \\@ref(def:def5) ta cần chỉ ra rằng', color = 'purple')`
+$$
+\color{purple}{ \P[T=1|X,e(X)] = \P[T=1|e(X)]}
+(\#eq:eq14)
+$$
+:::
+Ta có 
+$$
+VT = \P[T=1|X,e(X)] = \P[T=1|X] = e(X)
+$$
+và
+$$
+VP = \P[T=1|e(X)] = \E[T|e(X)] = \E[\E(T|X,e(X))|e(X)] = \E[e(X)|e(X)] = e(X)
+$$
+như vậy ta suy ra `r lb(eq14)`. `r rs('\\square')`
+::::
+
+## Sufficient statistics và minimal sufficient statistics
+
+Ở những phần trên chúng ta đã nhắc đến khái niệm _sufficient covariates_ rất nhiều lần, nhưng một covariate như thế nào mới gọi là sufficient? khái niệm này được hình thành từ thuật ngữ _sufficient statistics_ và _minimal sufficient statistics_ của Sir Ronald Aylmer Fisher, được xem như là cha đẻ của thống kê học hiện đại. Ở đây ta sẽ sơ lượt về 2 khái niệm này trước khi ta đi sâu vào các khía cạnh khác, bởi vì balancing score $b(X)$ hay propensity score $e(X)$ chính là một minimal sufficient statistic.
+
+:::: {.blackbox .notes .col-navy .center}
+Khái niệm sufficient, minimal sufficient và complete statistic chính là nền tảng trong data reduction, mọi thông tin mà ta có từ một sample nào đó sẽ được lưu giữ thông qua một (minimal) sufficient statistic, dựa vào statistic ta đưa ra các suy luận thông qua các kiểm định giả thuyết. Ta thấy rằng khi thực hiện một kiểm định ta dựa vào phân bố của một statistic và đưa ra kết luận, ví dụ như trong t-test ta dựa vào giá trị của $t$ và phân bố _student_ để quyết định một giả thuyết có đủ bằng chứng để reject hay không. Tương tự cho các dạng kiểm định khác.   
+::::
+
+### Statistics và sufficient statistics? 
+
+Statistic chính là một hàm số của $\bf{X} = (x_1,x_2,\dots,x_n)$ độc lập với các tham số. ví dụ ta có một phân bố $X \sim \mathcal{N}(\mu,\sigma^2)$ đại diện cho số tuổi của các bệnh nhân tham gia vào nghiên cứu. tất cả các hàm số $h(X)$ độc lập với $(\mu, \sigma)$ được gọi là statistic. Trong thống kê suy luận ta muốn biết về $\mu$ (số tuổi trung bình của các bệnh nhân trong quần thể), ta sẽ dựa vào statistic $\bar{X}$ để rút ra các kết luận về $\mu$. Nếu ta nhìn nhận vấn để thông qua đại lượng về thông tin, ta sẽ thấy rằng data ta có là một mẫu gồm $n$ bệnh nhân với các số tuổi ta có thể biết được và danh sách tuổi này chính là thông tin đầy đủ nhất từ data mà ta có. Dựa nào data này ta muốn đưa ra một chứng cứ để kết luận về $\mu$, và ta sử dụng $\bar{X}$, như vậy nếu $\bar{X}$ mang đầy đủ các thông tin cần thiết từ $\bf{X}$ và có thể đại diện được cho toàn bộ các $\{x_i\}_{i=1}^n$ thì ta gọi nó là sufficient statistic. Nếu $\bf{X}$ là thông tin gốc, thì thông qua $\bar{X}$ ta sẽ lọc bỏ đi các thông tin không cần thiết và giữ lại những thông tin có liên quan đến đại lượng ta muốn tìm. Ví dụ ta ném một đồng xu  2 lần sẽ có các trường hợp là $X = \{TT,TH,HT,HH\}$, $X$ chứa tất cả thông tin, ta tạm chia ra làm 2 nguồn
+
+1. nếu ta biết $X$ ta sẽ biết mặt của đồng xu trong hai lần ném là giống hay khác nhau .
+2. Nếu ta biết $X$ ta biết thứ tự các mặt thu được trong 2 lần ném.
+
+Nếu ta muốn biết tổng số mặt $H$ trong 2 lần ném là bao nhiêu, tạm gọi số mặt $H$ ta có là $Y$ thì 
+
+1. $Y=0$, ta có $X = \{TT\}$
+2. $Y = 1$, ta có $X = \{TH, HT\}$
+3. $Y=2$, ta có $X = \{HH\}$
+
+Bây giờ giả sử ta không biết $X$ mà chỉ biết $Y$, và nếu $Y=1$ thì ta chỉ biết là trong 2 lần ném đó ta thu được 2 mặt khác nhau, vì thế nó có thể là $HT$ hoặc $TH$, nhưng ta không biết chính xác là cái nào. Thông qua $Y$ ta đã mất đi nguồn thông tin số 2. Nếu ta chỉ muốn biết số lượng mặt $H$ thu được sau 2 lần ném là bao nhiêu thì có nghĩa là ta chỉ cần bảo đảm nguồn thông tin số 1 được giữ lại thông qua các phép tính và có thể bỏ qua nguồn thông tin số 2. Như vậy, Ta không cần biết tất cả các giá trị của $X$. Nói cách khác ta chỉ cần biết $Y$ và ta có thể dựa vào $Y$ để suy luận hay kết luận về một thông tin nào đó mà ta mong muốn được biết từ $X$. Ta thấy rằng $Y$ đã giữ lại những thông tin cần thiết ta muốn có và bỏ qua thông tin nhiễu hay không cần thiết, cũng có nghĩa là chiều không gian của $Y$ sẽ nhỏ hơn chiều không gian của $X$. 
+
+Như vậy nếu propensity score $e(X)$ được xem là một sufficient statistic thì có nghĩa là nó mang đầy đủ các thông tin cần thiết của các confounders, và có khả năng đại diện cho các confounders đó. Vì thế nếu ta biết $e(X)$ thì ta đã có đầy đủ các thông tin cần thiết rồi, sự có mặt của $X$ sẽ không tăng thêm bất kỳ một lượng thông tin nào mà ta cần nữa. Như vậy nếu $X$ có hàm phân bố là $f(\bf{x},\theta)$ thì một hàm $T(X)$ được gọi là sufficient statistic của $\theta$ khi $\P[X|T(X) =t]$ phải độc lập với $\theta$. Để tìm một hàm $T(X)$ ta có thể sử dụng phương pháp _factorization:_
+
+> Nếu ta có thể viết một hàm phân bố $f(\bf{x}, theta)$ dưới dạng $$f(\bf{x},\theta) = g(T(\bf{x});\theta)h(\bf{x}),$$ sao cho $g(T(\bf{x}))$ chỉ phụ thuộc $\bf{x}$ thông qua $T(\bf{x})$, và $h(\bf{x})$ là một hàm của $\bf{x}$ (độc lập với $\theta$), thì $T(\bf{x})$ chính là một sufficient statistic của $\theta$.
+
+Bên cạnh đó ta có thể chứng minh được rằng điều kiện cần và đủ để một hàm $T(\bf{x})$ là sufficient statistic của $\theta$ là nếu ta có hai giá trị cố định $\theta$ và $\theta_0$ thì hàm $\frac{f(x,\theta)}{f(x,\theta_0)}$ là hàm số của duy nhất $T(\bf{X})$. 
+
+Một đặc tính của sufficient statistic chính là hàm số $1-1$ của một sufficient statistic chính là một sufficient statistic. 
+
+```{example, label = "exm01"}
+Nếu ta có $X \sim \mathcal{N}(\mu,\sigma^2)$, trong đó giả sử rằng $\sigma^2$ cho tru7o1c và ta muốn ước lượng $\mu$. Ta biết rằng 
+$$
+f(x,\theta) = \frac{1}{\sqrt{2\pi}\sigma}\exp\{-\frac{1}{2\sigma^2}(x-\mu)^2\},
+$$
+như vậy ta có
+
+```
+
+$$
+\begin{split}
+f(\bf{x},\theta) &\propto \exp\Big\{-\frac{1}{2\sigma^2}\Big(\sum^nx_i^2-2\mu\sum^nx_i+n\mu^2\Big)\Big\} \\
+&= h(\bf{x})\exp\Big\{\frac{\mu\sum^nx_i}{\sigma^2} - \frac{n\mu^2}{2\sigma^2}\Big\},
+\end{split}
+$$
+phụ thuộc vào $\bf{x}$ thông qua $\sum^nx_i$, như vậy $\sum^nx_i$ chính là một sufficient statistic của $\mu$, và vì $\bar{X}$ và $\sum^nx_i$ có mối quan hệ $1-1$ nên $\bar{X}$ cũng là một sufficient statistic của $\mu$. 
+
+Quay lại vấn dề của propensity score $e(X)$, nó sẽ được gọi là sufficient statistic của treatment $T$ nếu ta chỉ ra được rằng
+
+$$
+X \indep T|e(X)
+$$
+
+có nghĩa là một khi ta biết được $e(X)$ thì phân bố của $X$ trong hai nhóm treatments đều giống nhau. (Độc lập với $T$ có nghĩa là với các giá trị $T$ khác nhau phân bố của $X$ sẽ không thay đổi.)
+
+
+### Minimal statistics
+
+Trong thực tế thì ta có thể tìm thấy nhiều hơn một sufficient statistic $T(X)$, vì thế khái niệm _minimal sufficient statistic_ được hình thành để chỉ ra một hàm số $T^*(X)$ là sufficient statistic và là hàm số của tất cả các hàm sufficient statistic khác. Có nghĩa là 
+$$
+T^*(X) = g(T(X))
+$$
+
+Nếu ta có $\mathcal{P} = \{f_0,\dots,f_k\}$ là tập hợp của các hàm phân bố có cùng một tập xác định $X$, thì statistic $T(\bf{X}) = \Big(\frac{f_1(\bf{X})}{f_0(\bf{X})}, \frac{f_2(\bf{X})}{f_0(\bf{X})}, \dots, \frac{f_k(\bf{X})}{f_0(\bf{X})} \Big)$ (hoặc bất kỳ một hàm $1-1$ của nó) là một minimal sufficient statistic.
+
+```{example  label = "exm02"}
+Ta có phân bố của $X$ ở hai nhóm điều trị lần lượt là $\mathcal{F} = \{f_0,f_1\}$, và $\P(T) = \pi$ thì phân bố của $X$ là
+$$
+X|F_T=\emp = \pi f_1 + (1-\pi)f_0.
+$$
+
+Nếu gọi $\gamma = \frac{f_1}{f_0}$ thì $\gamma$ chính là một minimal sufficient statistic của $\mathcal{F}$. 
+
+Ngoài ra, bởi vì $e(X) = \P[T=1|X]$ ta có
+
+$$
+e(X) = \frac{\pi\gamma}{\pi\gamma +1 -\pi},
+$$
+một hàm $1-1$ của $\gamma$ nên $e(X)$ chính là một minimal sufficient statistic. 
+```
+
+Ngoài ra để tìm một minimal sufficient statistic $T^*(X)$ bằng cách thiết lập một hàm phân thức $\frac{f(\bf{x},\theta)}{f(\bf{y},\theta)}$, và chứng minh rằng hàm này độc lập với $\theta$ khi và chỉ khi $T^*(\bf{x}) = T^*(\bf{y})$. Hoặc ta cũng có thể chứng minh bằng cách quy về exponential family. 
+
+
+ 
+## Mô hình tuyến tính của phân phối chuẩn (phương sai không đổi)
+
+Giả sử ta có biến phụ thuộc $Y \in R^{p\times 1}$, các confounders $X$ viết dưới dạng matrix, ta có 
+
+$$
+Y|X,T,F_T \sim \mathcal{N}(a+\alpha T + b^{\top}X, \phi)
+$$
+
+Tiếp theo ta có thể suy ra rằng
+
+$$
+\begin{split}
+ACE = \E[SCE_X] &= \E[\E_1(Y|X)] - \E[\E_0(Y|X)] \\
+&= \E(a+\alpha+b^{\top}X) - \E(a+b^{\top}X) \\
+&= \alpha
+\end{split}
+(\#eq:eq16)
+$$
+
+Như vậy $\alpha$ chính là đại lượng ta quan tâm, cũng có nghĩa là trong mô hình $y = a + \alpha T + bX+\epsilon$ thì ta sẽ chỉ quan tâm tới tham số $\alpha$. Ngoài ra ta thấy rằng $TC = b^{\top}X$ chính là một minimal suficient statistic. ta có thể chứng minh như sau
+
+__Chứng minh:__ $b^{\top}X$ là một minimal sufficient statistic.
+
+Ta xem xét phân bố của $Y$
+$$
+\begin{split}
+f(\alpha|Y=1,X,T) &= \frac{1}{\sqrt{2\pi}\sigma}\exp\{-\frac{1}{2\sigma^2}(y-\mu)^2\},~~~~~\small (\text{giả sử } \mu = d + \alpha+b^{\top}X) \\
+&= b(x) \exp\{-\frac{1}{2\sigma^2}(y^2 - 2y\mu+\mu^2)\} \\
+& = b(x) \exp\{-\frac{1}{2\sigma^2}[-2y(d+\alpha+b^{\top}X) + (d+\alpha+b^{\top}X)^2 ]\} \\
+&= a(\alpha)b(x)\exp\{-(\alpha/\sigma^2)(b^{\top}X)\} 
+\end{split}
+$$
+dễ dàng nhận thấy phân bố này thuộc exponential family trong đó $c(\theta) = -(\alpha/\sigma^2)$ và $d(x) = (b^{\top}X)$. Như vậy ta có thể suy ra $b^{\top}X$ là minimal sufficient statistic. 
+`r rs('\\square')`
+
+Vì thế $\E[Y|TC,T] = a + \alpha T + TC$ độc lập với $F_T$ bởi `r lb(eq11)`, nghĩa là trong bất kỳ không gian observational hay interventional thì $\E[Y|TC,T]$ không đổi. và vì thế $\alpha = \E[Y|TC,T=1] - \E[Y|TC,T=0]$ cũng độc lập với $F_T$.
+
+Ở trên ta đã xem xét $Y|X$ và chỉ ra rằng giá trị $\alpha$ mà ta quan tâm hoàn toàn có thể tính toán dựa vào sufficient statistic $TC$ và nó có thể được tính trong bất kỳ không gian nào (interventional hoặc observational). Tiếp theo ta cần xem xét $TC$ nào là phù hợp. Ta thấy rằng $TC$ chính là một hàm số tuyến tính của $X$, để tìm một dạng phù hợp cho hàm số này của $X$ ta cần xem xét phân bố $X|T$, nếu ta có thể tìm ra một hàm tuyến tính của $X$ là một minimal sufficient statistic chứa đầy đủ các thông tin của $X$ và có thể đại diện cho $X$ thì hàm số đó có thể là $b^{\top}X$ hoặc một hàm $1-1$ của $b^{\top}X$, bởi vì tất cả các hàm $1-1$ của minimal sufficient statistic cũng chính là một minimal sufficient statistic. 
+
+Giả sử rằng ta có một phân bố $(X,T)$ trong không gian observational trong đó 
+
+$$
+\P_{\emp}(T=1) = \pi, \\
+X|(T,F_T = \emp) \sim \mathcal{N}(\mu_T,\Sigma)
+$$
+với $\pi \in (0,1)$, $\{\mu_{t} \in \mathbb{R}^{p\times 1}:t=0,1\}$ và $\Sigma \in \mathbb{R}^{p\times p}$. Như vậy trong không gian observational ta có 
+
+$$
+X \sim \pi\mathcal{N}(\mu_1, \Sigma) + (1-\pi)\mathcal{N}(\mu_0,\Sigma).
+(\#eq:eq17)
+$$
+
+Ta nhớ lại rằng công thức tính propensity score chính là $\P[T=1|X]$, như vậy ta có 
+
+$$
+\begin{split}
+\P[T=1|X] &= \frac{\P[X|T=1]\P[T=1]}{\P[X]} \\ 
+&= \frac{\mathcal{N}(\mu_1,\Sigma)\pi}{\mathcal{N}(\mu_0,\Sigma)(1-\pi) + \mathcal{N}(\mu_1,\Sigma)\pi} \\
+&= \frac{\frac{\mathcal{N}(\mu_1,\Sigma)}{\mathcal{N}(\mu_0,\Sigma)}\pi}{\frac{\mathcal{N}(\mu_1,\Sigma)}{\mathcal{N}(\mu_0,\Sigma)}\pi + (1-\pi)} \\
+&= \frac{\pi \gamma}{\pi \gamma + (1-\pi)}
+\end{split}
+$$
+ta thấy rằng mối quan hệ giữa propensity score và $\gamma$ là $1-1$. Nếu $\gamma$ là minimal sufficient statistic thì propensity score cũng chính là minimal sufficient statistic. Mà $\gamma$ chính là phân thức $\mathcal{N}(\mu_1,\Sigma):\mathcal{N}(\mu_0,\Sigma)$. Ta xét $\ln(\gamma)$ như sau 
+
+$$
+\ln(\gamma) = \frac{1}{2}(\mu_0^{\top}\Sigma^{-1}\mu_0 - \mu_1^{\top}\Sigma^{-1}\mu_1) + [\Sigma^{-1}(\mu_1-\mu_0)]^{\top}X  
+$$
+nếu $\beta = [\Sigma^{-1}(\mu_1-\mu_0)]$, thì $\beta^{\top}X$ chính là hàm tuyến tính của $X$. Và nếu nó là minimal sufficient statistic thì $\ln(\gamma)$ cũng chính là một minimal sufficient statiatic theo quan hệ $1-1$, vì thế $\gamma$ cũng sẽ là minimal sufficient statistic (hàm $\ln(.)$ là hàm $1-1$). lưu ý rằng $\beta^{\top}X$ cũng được gọi là _linear discriminant_, mặt phằng tốt nhất để chia data thành hai nhóm active hay control (linear discriminant cũng chính là một phương pháp trong machine learning được sử dụng trong bài toán classification, trong đó thuật toán được sử dụng là _expectation-maximization_, hay gọi là E-M algorithm).
+
+Việc còn lại là ta phải chỉ ra rằng $\beta^{\top}X$ là một minimal sufficient statistic của $\alpha$. 
+
+__Chứng minh:__ $\beta^{\top}X$ là một minimal sufficient statistic
+
+Lấy $\tau =T$, ta có 
+
+$$
+\begin{split}
+\P(\tau|X) &= [\pi\mathcal{N}(\mu_1,\Sigma)]^{\tau}[(1-\pi)\mathcal{N}(\mu_0,\Sigma)^{1-\tau}]   \\
+&= \Bigg[\frac{\pi\mathcal{N}(\mu_1,\Sigma)}{(1-\pi)\mathcal{N}(\mu_0,\Sigma)}\Bigg]^{\tau}(1-\pi)\mathcal{N}(\mu_0,\Sigma) \\
+&= a(\tau)b(x)\bigg\{\frac{\mathcal{N}(\mu_1,\Sigma)}{\mathcal{N}(\mu_0,\Sigma)} \bigg\}^{\tau}
+\end{split}
+$$
+
+lấy $\Gamma(\tau) = \bigg\{\frac{\mathcal{N}(\mu_1,\Sigma)}{\mathcal{N}(\mu_0,\Sigma)} \bigg\}^{\tau}$, ta có
+
+$$
+\begin{split}
+\Gamma(\tau) &= \frac{\pi}{1-\pi}\exp\{-\frac{\tau}{2}(x-\mu_1)^{\top}\Sigma^{-1}(x-\mu_1)+\frac{\tau}{2}(x-\mu_0)^{\top}\Sigma^{-1}(x-\mu_0)\} \\
+&= a(\tau)b(x)\exp\{-\frac{\tau}{2}[-x^{\top}\Sigma^{-1}\mu_1 - \mu_1\Sigma^{-1}x +x^{\top}\Sigma^{-1}\mu_0 + \mu_0\Sigma^{-1}x  ] \} \\
+&= a(\tau)b(x)\exp\bigg\{\frac{\tau}{2}[x^{\top}\Sigma^{-1}\mu_1 + \mu_1\Sigma^{-1}x -x^{\top}\Sigma^{-1}\mu_0 - \mu_0\Sigma^{-1}x] \bigg\} \\
+&=a(\tau)b(x)\exp\{\tau(x^{\top}\Sigma^{-1}\mu_1 -x^{\top}\Sigma^{-1}\mu_0) \} \\
+&=a(\tau)b(x)\exp\{\tau x^{\top}\Sigma^{-1}(\mu_1 -\mu_0) \} 
+\end{split}
+$$
+như vậy ta có $c(\theta) = \tau$ và $d(x) = \beta^{\top}X = x^{\top}\Sigma^{-1}(\mu_1-\mu_0)$. Từ đó suy ra đpcm
+`r rs('\\square')`
+
+Như vậy ta có thể hình thành định lí sau 
+
+:::: {.blackbox}
+```{theorem label = "thm2"}
+tham số của $T$ trong phương trình hồi quy tuyến tính của $Y$ được tính trên $(T,\beta^{\top}X)$ bằng với tham số của $T$ được tính trên $(T,X)$.
+```
+::::
+
+Bên cạnh đó ta cũng có thể chứng minh Bổ đề sau 
+
+::::{.blackbox}
+```{lemma label = "lem3"}
+Giả sử $LD = \beta^{\top}X$ không giống với $b^{\top}X$ thì ước lượng của $ACE$ được điều chỉnh bằng ướng lượng $\hat{LD}$ của $LD$ chính xác hơn là điều chỉnh từ $LD$. [@hui2010]
+```
+::::
+
+
+# Phương pháp nhân đôi tính ổn định (double robustness)
+
+## Kỳ vọng gia quyền được tính bằng cách tăng xác suất nghịch đảo `r colorize("_(augmented inverse probability weighted estimator)_", color = 'gray')`
+
+Ta xem xét 2 mô hình sau 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ################################################################################################### -->
+***
+# 📝 _References_ {-}
+<!-- :::: {.blackbox data-latex=""} -->
+<!-- ::: {.center data-latex=""} -->
+<!-- **Proof:** -->
+<!-- ::: -->
+<!-- over here -->
+<!-- :::: -->
+
+
+<!-- - __Mô hình hồi quy đáp ứng *(response regression model-RRM)*:__ Giả sử chúng ta biết RRM, ta có thể ký hiệu như sau  -->
+<!-- $$ -->
+<!-- \mu_t = \E_{\emp}[\E_{\emp}(Y|X,T=t)], -->
+<!-- (\#eq:eq18) -->
+<!-- $$ -->
+<!-- đây là một ước lượng không nhiễu vì $X$ là một minimal sufficient statistic, vì thế $\E_{\emp}(Y|X,T=1) - \E_{\emp}(Y|X,T=0)$ cũng là một ước lượng không nhiễu.  -->
+<!-- - __Mô hình propensity *(propensity model - PM)*:__ Giả sử mình hình propensity score đúng, ta sẽ có $\pi(X) = \P_{\emp}(T=1|X).$ -->
+
+<!-- :::{.blackbox} -->
+<!-- ```{lemma, label = "lem4"} -->
+<!-- Giả sử PM đúng và $X$ là (minimal) sufficient statistic, ta có  -->
+<!-- $$ -->
+<!-- ACE = \E_{\emp}\Big[\frac{T}{\pi(X)}Y\Big] -  \E_{\emp}\Big[\frac{1-T}{1-\pi(X)}Y\Big], -->
+<!-- (\#eq:eq19) -->
+<!-- $$ -->
+<!-- trong đó $\E_{\emp}\Big[\frac{T}{\pi(X)}Y\Big] = \mu_1$ và $\E_{\emp}\Big[\frac{1-T}{1-\pi(X)}Y\Big] = \mu_0.$ -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- __Chứng minh:__ Ta chứng minh cho trường hợp $T=1$ như sau  -->
+
+<!-- $$ -->
+<!-- \begin{split} -->
+<!-- \E_{\emp}\Big[\frac{T}{\pi(X)}Y\Big] &\overeq{(1)}{=} \E_{\emp}\Big[\E_{\emp}\Big(\frac{T}{\pi(X)}Y|X\Big)\Big] \\  -->
+<!-- &= \E_{\emp}\Big[\Big(\frac{1}{\pi(X)}\E_{\emp}(TY|X)\Big] \\ -->
+<!-- &\overeq{(2)}{=} \E_{\emp}\Big[\frac{1}{\pi(X)}\E_{\emp}(Y|T,X)\P_{\emp}(T=1|X)  \Big] \\ -->
+<!-- &= \E_{\emp}[\E_{\emp}(Y|X,T=1)] \\ -->
+<!-- &\overeq{(3)}{=} \mu_1 -->
+<!-- \end{split} -->
+<!-- $$ -->
+
+<!-- - (1): sử dụng công thức kỳ vọng có điều kiện $X$ -->
+<!-- - (2): sử dụng công thức có điều kiện $Y$ -->
+<!-- - (3): vì \@ref(eq:eq18) -->
+
+<!-- Như vậy ta có thể chứng minh tương tự cho trường hợp $T=0$, và suy ra ACE là một ước lượng không nhiễu. `r rs("\\square")` -->
+
+<!-- Bởi vì ta không có thông tin về cả RRM và PM, nên ta sẽ không xác định được liệu mô hình nào mới thật sự đúng. Vì thế giả thuyết được đưa ra là nếu ta không biết chắc nên sử dụng mô hình nào thì cách tốt nhất là ta kết hợp cả 2 mô hình như sau  -->
+
+<!-- $$ -->
+<!-- \hat{\mu}_{1,AIPW} = m(X) + \frac{T}{\pi(X)}(Y - m(X)) = \frac{T}{\pi(X)}Y + m(X)\Big[1-\frac{T}{\pi(X)}\Big] -->
+<!-- (\#eq:eq20) -->
+<!-- $$ -->
+<!-- $\hat{\mu}_{0,AIPW}$ có dạng tương tự trong đó $\pi(X)$ được thay bằng $1-\pi(X)$, còn $T$ được thay bằng $1-T$. $m(X)$ và $\pi(X)$ là hàm bất định của $X$. -->
+
+<!-- :::{.blackbox} -->
+<!-- ```{lemma label="lem5"} -->
+<!-- Giả sử $X$ là một sufficient statistic thì tính ổn định  của ước lượng $\hat{\mu}_{t,AIPW}$ sẽ được nhân đôi. Nghĩa là $\hat{\mu}_{t,AIPW}$ là một ước lượng không nhiễu với $T=t$ nếu một trong hai điều kiện $\pi(X) = \P_{\emp}(T=1|X)$ và $m(X) = \E_{\emp}(Y|X,T=t)$ đúng.  -->
+<!-- ``` -->
+<!-- ::: -->
+
+<!-- - _Trường hợp 1:_ $\pi(X) = \P_{\emp}(T=1|X)$, $m(X)$ là hàm bất kỳ của $X$. Trong trường hợp này ta có thể chỉ ra rằng `r lb(eq20)` là một ước lượng không bị nhiễu. -->
+
+<!-- __Chứng minh:__  -->
+<!-- $$ -->
+<!-- \begin{split} -->
+<!-- \E(\hat{\mu}_{1,AIPW}) &= \E\bigg[\frac{1}{\pi(X)}\E(TY|X)\bigg] + \color{grey}{\E\bigg[m(X)\Big[1-\frac{\E(T|X)}{\pi(X)}\Big]\bigg]} \\ -->
+<!-- &= \E\bigg[\frac{1}{\pi(X)}\E(Y|T=1,X)\P(T=1|X) \bigg] \\ -->
+<!-- &= \mu_1 -->
+<!-- \end{split} -->
+<!-- $$ -->
+
+<!-- - _Trường hợp 2:_ $m(X) = \E_{\emp}(Y|X,T=1)$, $\pi(X)$ là hàm số tùy ý của $X$.   -->
+
+

@@ -1,0 +1,349 @@
+---
+title: "📍 Multiple Hypothesis Testing"
+author: 👦 $\mathcal{A.T}$
+date: "📅 `r format(Sys.Date(), format = '%B %d, %Y')`"
+header-includes:
+   - \usepackage{amsmath}
+   - \usepackage{titling}
+   - \pretitle{\begin{flushleft}}
+   - \posttitle{\end{flushleft}}
+   - \usepackage{eso-pic,graphicx,transparent}
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+
+```{r child="../00_supp/general_rmd.Rmd"}
+```
+
+# Introduction 
+
+Suppose we conduct $m$ hypothesis tests ($m >\!\!> 1$), We can summary results in the contingency table as follows
+
+
+```{r  tab1, echo = F, results='asis', fig.cap="_contigency table of $m$ hypothesis test_"}
+tibble(
+  ` ` = c("$$H_o~~~true$$","$$H_o~~~false$$", "total"),
+  `not significant` = c("U","T","m-R"),
+  `significant` = c("V","S","R"),
+  `  ` = c("$$m_o$$","$$m_1$$","m")
+)%>% draw_table()
+```
+
+The problem is how to combine them into a simultaneous test procedure?
+
+Suppose $V$ is the number of false rejection among $m$ tests, so that we have 
+
+$$
+\begin{split}
+\P(V\ge 1) &= 1 - \P(V=0) \\
+&= 1 - \prod_{i=1}^m\P(\text{"no type of error for null hypothesis i"}) \\
+&= 1 - \prod_{i=1}^n(1-\alpha)\\
+&= 1 - (1- \alpha)^m
+\end{split}
+$$
+so when $\alpha = 0.05$,
+
+```{r, echo=F}
+tibble(m = seq(1,50, length.out = 10)%>%round())%>%
+  mutate(`$P(V \\ge1)$` = 1-(1-0.05)^m)%>%
+  kable(escape = F)%>%
+  kable_styling()
+```
+
+Thus, the larger the number of hypothesis is, the more probability of false rejection increases. So, we need to control such the probability of false rejection. Formally, we need 
+
+$$
+\text{per-test-error-rate} = \P(\text{false rejection of }H_o) \le \alpha
+$$
+which is called _family-wise error rate_. in other words, we are interested in $FWER \le \alpha$.
+
+There are quite many approaches to control FWER. two of methods that are widely used are 
+
+1. Single step procedure
+2. Stepwise procedure (step-down and step-up)
+
+# Single step procedure to control FWER
+
+Two procedures that belongs to this class are Dunn-Sidak and Bonferroni. 
+
+## Dunn-Sidak 
+
+Suppose $\alpha_i = \alpha_d$ for individual test, we aim to find $\alpha_i$ such that $FWER \approx \alpha$. Thus, if we have 
+
+$$
+\alpha = 1-(1-\alpha_d)^m
+$$
+
+we obtain 
+
+$$
+\alpha_d = 1- (1-\alpha)^{1/m}
+$$
+obviously
+
+$$
+\P(V\ge1)  = 1-(1-\alpha_d)^m = 1 - [1- 1+(1-\alpha)^{1/m}]^{m} = \alpha
+$$
+
+## Bonferroni
+
+Suppose we have $m$ hypotheses $H_{oi}$, each hypothesis is rejected as $p_i\le \alpha/m$. Thus, Bonferroni is a linear approximation of the Dunn-Sidak since 
+
+$$
+\begin{split}
+(1-\alpha)^{1/m} &\stackrel{taylor}{=} 1 - \frac{\alpha}{m} + \frac{(1/m)[(1/m) -1]}{2}\alpha^2+ \dots\\
+& \approx 1- \frac{\alpha}{m}
+\end{split}
+$$
+for example, when $m = 10, \alpha = 0.05$ we have $\alpha_d  = 0.0051162$ and $\alpha/m = 0.005$.
+
+# Stepwise procedure to control FWER
+
+## Holm procedure 
+
+Both Bonferroni and Dunn-Sidak focus on adjusting $\alpha$ of individual test, so that this approach tests have low ability to detect cases where $H_{0i}$ is false. Therefore, a procedure that is developed to address this issue is _Holm procedure_. This method will increase per-test error rates over $\alpha/m$ without increasing FWER. 
+
+Let $\{p_i:i=1,\dots,m\}$ are p-values that is associated with hypotheses $H_{01},\dots,H_{0m}$. Holm procedure will be carried out as follows
+
+1. Rank all p-values. Let $\{p_{(i)}:i=1,\dots,m\}$ be the ordered p-values.
+2. We consecutively test $p_{(1)}, p_{(2)}, \dots, p_{(m)}$ against $\frac{\alpha}{m}, \frac{\alpha}{m-1}, \dots,$ the $i$th smallest against $\frac{\alpha}{m-i+1}$. this process will be terminal once $p_{(j)} > \frac{\alpha}{m-j+1}$. In other words, we will stop when we detect the first non-significant hypothesis. 
+
+We can also draw a plot to visualize the calculation. Let's see the following example 
+
+```{r}
+d = read.csv( "p-val.csv")%>%
+  mutate(type = paste("outcome",1:n()))
+d%<>%
+  rename(p = maic_p_val)%>%
+  mutate(frac = 1/(n() - rank(p)+1))%>%
+  mutate(adj.p = ifelse(1/frac*p>=1,1,p/frac))%>%
+  mutate(decision = ifelse(p<0.05*frac,"reject"," fail to reject"))%>%
+  arrange(p)
+
+d[,c(1,2,4)]%>%
+  modify_if(is.numeric,round,digits = 3)%>%
+  draw_table()
+
+ggplot(d, aes(x = frac,y = p, color = decision))+
+  geom_point()+
+  geom_abline(slope = 0.05, intercept = 0)
+```
+
+Thus, any p-value that is below the line result in significant result.
+
+Moreover, we can prove that this procedure satisfies $FWER \le \alpha$. recall $V$ is number of false rejection, by Markov-s inequality we have 
+
+$$
+\begin{split}
+\P(V\ge1) \le \E(V) &= \E\big[\sum_{i \in m_0}\I(p_i \le \alpha/m) \big] \\
+&= \sum_{i \in m_0}\P(p_i \le \alpha/m) \\
+&\le \sum_{i \in m_0}\frac{\alpha}{m}\\
+&= \frac{\alpha}{m}m_0 \\
+& \le \frac{\alpha}{m}m = \alpha
+\end{split}
+$$
+
+## Hochberg Procedure
+
+This procedure reverses Holm by starting at the greatest p-value. We consecutively test hypotheses by comparing p-values with $\alpha, \alpha/2, \alpha/3,\dots$ until we detect first significant result. Then, we declare hypotheses corresponding to the rest of p-values are significant. This approach is slightly more powerful than Holm. Also note that both procedure do not agree with terminal point.
+
+Again, once the number of hypothesis test are large there may be low power for establishing significance with a certain inference. Furthermore, it  is also difficult to detect any effect that truely exist. In the absence of multiplicity adjustment, most significant tests could be false positive.
+
+# False Discovery Rate (FDR)
+
+When we control FWER we adjust for per-test error rates, which becomes very small. So, it leads to fail to reject both true null hypothesis (good) and false null hypothesis (bad) since we lose the power to detect (see table \@ref(fig:tab1)). In these situations, we need a new criterion that can improve the power of detecting false positive. Some authors argued that in many multiplicity the number of false positive should be taken into account. Thus, we are interested in controlling _expected proportion of errors among the rejected hypotheses_ also called FDR.  According to table \@ref(fig:tab1) we have 
+
+$$
+FDR = \cases{\E(\frac{V}{R}) = \frac{\text{Number of false rejections}}{\text{total number of rejections}}, R> 0 \\
+0, R=0},
+$$
+
+it is also proved that when $m$ and $m_1$ are large, FDR tend to reject more false null hypotheses. Besides, we can prove that $FDR \le FWER$, the proof has 2 cases 
+
+__Case 1: $V=R$__ by definition we have 
+
+$$
+\frac{V}{R} = \cases{
+0, \text{ if } V = 0\\
+1 \text{ if } V\ge 1
+}
+$$
+thus, 
+
+$$
+\begin{split}
+FDR = \E(V/R) &= \E(V/R|V=0)\P(V=0) + \E(V/R|V\ge 1)\P(V\ge 1)\\
+&= 0\P(V=0) + 1\P(V \ge 1)\\
+&=\P(V \ge 1) \\
+&= FWER
+\end{split}
+$$
+
+__Case 2: $V< R$__
+
+$$
+\begin{split}
+FDR = \E(V/R) &= \E(V/R|V \ge 1)\P(V \ge 1) + \E(V/R|V=0)\P(V=0) \\
+&= \E(V/R|V \ge1)\P(V \ge 1)+0 \\
+&< 1.\P(V \ge 1) \\
+&= FWER
+\end{split}
+$$
+
+One of procedure that belongs to FDR is _Benjamini and Hochberg_ (BH). this procedure is carried out as follows
+
+1. order all p-values: $p_{(1)} \le p_{(1)} \le \dots \le p_{(m)}$
+2. For $j = m, \dots, 1:$ *do*
+   - If $p_{(j)} \ge \frac{j}{m}\alpha$, fail to reject $H_{0j}$ and continue
+   - Otherwise, reject $H_{0(j)},\dots,H_{0(1)}$.
+   
+```{r}
+d = read.csv( "p-val.csv")%>%
+  mutate(type = paste("outcome",1:n()))
+d2 = d%>%
+  rename(p = maic_p_val)%>%
+  arrange(p)%>%
+  mutate(frac = 0.05*(1:n())/n())%>%
+  mutate(decision =  ifelse(p> frac, "Fail to reject","reject"))%>%
+  mutate(adj.p = p.adjust(p, method = "BH"))
+d2%>%
+  modify_if(is.numeric, round, digits = 3)%>%
+  draw_table()
+
+ggplot(d2, aes(x = (1:nrow(d2))/nrow(d2), y = p, color = decision   ))+
+  geom_point()+
+  geom_abline(slope = 0.05, intercept = 0)
+```
+
+we can give comments here: 
+
+- Since we coltrol FDR at 0.05, we can say that on everage only 5% of these 2 rejected tests are done by mistake $0.05*2 = 0.1$.
+- Using Bonferroni method we will obtain 2 rejected hypotheses as follows
+
+```{r}
+d3 = mutate(d, bonferroni = p.adjust(maic_p_val,"bonferroni"))%>%
+  arrange(maic_p_val)%>%
+  modify_if(is.numeric, round, digits = 3)%>%
+  rename(p = maic_p_val)
+  draw_table(d3)
+```
+
+In this case, FDR align FWER but in general FDR is often more liberal than FWER. To see that, let $\alpha = 0.1$. We will reject 3 hypotheses inder BH-controlling procedure while only 2 hypotheses are rejected under bonferroni (see below).
+ 
+```{r, warning=F, message=F}
+ select(d2, type, adj.p)%>%
+  rename(BH = adj.p)%>%
+  modify_if(is.numeric, round, digits = 3)%>%
+  inner_join(.,select(d3, type,bonferroni), id = "type")%>%
+  draw_table()
+```
+
+# Conclusion
+
+- For FWER-controlling procedure, it is obvious to see that stepwise procedures give smaller adjusted p-values than the single step procedures. This is stepwise procedure is more powerful than the single step in term of detecting false positive. Also, The more hypotheses we add the worse power we get.
+- For FDR, the more null result hypotheses we add the worse power we get. 
+- We can use Holm-Bonferroni to control FWER and BH to control FDR.
+- Adjustment can be added to improve the power, yet don't expect any miracles if we have a huge number of non significant results. 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ################################################################################################### -->
+<!-- :::: {.blackbox data-latex=""} -->
+<!-- ::: {.center data-latex=""} -->
+<!-- **Proof:** -->
+<!-- ::: -->
+<!-- over here -->
+<!-- :::: -->
+
+<!-- notation on equal sign -->
+<!-- \stackrel{}{} -->

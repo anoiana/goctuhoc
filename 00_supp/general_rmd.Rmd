@@ -1,0 +1,109 @@
+---
+output: html_document
+---
+
+\newcommand{\bf}[1]{\boldsymbol{#1}}
+\newcommand{\hat}[1]{\widehat{#1}}
+\newcommand{\mm}[1]{\mathbb{#1}}
+\newcommand{\bar}[1]{\overline{#1}}
+\def\E{\Bbb{E}}
+\def\V{\Bbb{V}}
+\def\P{\Bbb{P}}
+\def\I{{\large\unicode{x1D7D9}}}
+\def\indep{\perp\!\!\!\!\perp}
+\newcommand{\overeq}[2]{\stackrel{#1}{#2}}
+\def\epsilon{\varepsilon}
+
+
+```{css, echo = F}
+.watermark {
+  opacity: 0.1;
+  position: fixed;
+  top: 2%;
+  left: 50%;
+  font-size: 350%;
+  color: #7d0040;
+}
+
+.scroll-100 {
+  max-height: 100px;
+  overflow-y: auto;
+  background-color: inherit;
+}
+```
+
+```{r setup, include=FALSE, message=FALSE,warning=FALSE}
+knitr::opts_chunk$set(echo = FALSE, fig.align = "center", class.output="scroll-200", message = FALSE, warning = FALSE)
+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+
+# fig label: fig1 on r chunk
+# formula label: (\#eq:f01)       
+# call it: \@ref(fig: label) 
+# hightlights word: `package`
+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+#+
+if(!require(pacman)) install.packages("pacman");pacman::p_load(
+tidyverse, haven, magrittr, furrr,Hmisc, grid, ggplotify, forestplot, knitr, kableExtra, DT, network, sna, reactable, xaringan, bookdown,scriptName
+)
+source("../00_supp/anh_functions.R",local = knitr::knit_global())
+source("../00_supp/draw_diagram.R",local = knitr::knit_global())
+##################################
+##################################
+# functions ----------------------
+
+# label ----
+lb = function(...,vn=T){
+
+  def1 =paste0(ensyms(...))
+  if(length(def1)==1) def1 = c(stringr::str_extract(def1,"[a-z]+"),def1)
+  
+  if(vn){
+    a = dplyr::case_when(def1[1] == "def"~ "định nghĩa",
+                       def1[1] == "thm" ~ "định lí",
+                       def1[1] == "exm" ~ " ví dụ",
+                       def1[1] == "exr" ~ " bài tập",
+                       def1[1] == "lem" ~ "bổ đề",
+                       def1[1] == "eq" ~ "phương trình",
+                       def1[1] == "fig" ~ "hình"
+                       )%>%
+    paste0("*",.,"*")
+  }
+  else{
+    a = dplyr::case_when(def1[1] == "def"~ "definition",
+                       def1[1] == "thm" ~ "theorem",
+                       def1[1] == "exm" ~ " example",
+                       def1[1] == "exr" ~ " exercise",
+                       def1[1] == "lem" ~ "lemma",
+                       def1[1] == "eq" ~ "equation",
+                       def1[1] == "fig" ~ "figure"
+                       )%>%
+    paste0("*",.,"*")
+  }
+  paste0(colorize(a, color = "black")," \\@ref(",def1[1],":",def1[2],")")%>%
+    str_remove_all('`')
+}
+
+# function ----
+colorize <- function(x, color= "#F5B7B1",size = "18"){
+ size = paste0(size,"px")
+ sprintf("<span style='color: %s; font-size: %s;'>%s</span>", color, size, x)
+}
+# table ---
+draw_table = purrr::partial(reactable::reactable,bordered = TRUE, striped = TRUE, highlight = TRUE, fullWidth = FALSE)
+
+
+# print from right side
+
+rs = function(x) paste0("<P align=right> ",x," </P>")
+
+# print reference 
+
+bring_rf_here = function() '<div id="refs"></div>'
+
+# install packages
+
+ins_pac = function(...){
+  if(!library(pacman, logical.return = TRUE)) install.packages("pacman")
+  #pacman::p_load(...)
+  l = dplyr::ensyms(...)
+  purrr::lift_dl(pacman::p_load)(l)
+}
+```

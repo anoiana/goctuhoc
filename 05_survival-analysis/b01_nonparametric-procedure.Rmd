@@ -1,0 +1,723 @@
+---
+title: "&#128205; Phân Tích Sống Sót Trong Quần Thể Đồng Nhất"
+subtitle: "(Phương pháp phi tham số)"
+author: 👦🏻 _A.T_
+date: "&#x1F4C5; _`r {
+if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
+update=FALSE
+filename=knitr::current_input(dir = FALSE)
+mylist <- readRDS(file ='date_list.rds')
+if(update|!(filename%in%names(mylist))){
+mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
+saveRDS(mylist, file = 'date_list.rds')}
+readRDS(file ='date_list.rds')[[filename]]  }`_"
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: 72
+---
+
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 90px;
+  margin: 2.75em 15px 40px 15px;
+  background-image: url("km.png");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+```{r  child="../00_supp/general_rmd.Rmd"}
+```
+
+::: {.watermark}
+*DRAFT*
+:::
+
+<!-- ===================== START FROM HERE ========================== -->
+
+# Ý nghĩa toán học của các hàm số được sử dụng trong phân tích sống sót
+
+Gọi $T$ là một biến ngẫu nhiên không âm đại diện cho khoảng thời gian tính tới khi bệnh nhân tử vong. Có ba phương pháp để xác định phân bố xác suất của $T$, đó là thông qua _hàm tồn tại, hàm mật độ xác suất_ và _hàm nguy cơ_. 
+
+`r colorize("*Hàm tồn tại*", "tomato")` được định nghĩa dưới phân bố rời rạc và liên tục bởi xác suất của $T$ lớn hơn giá trị $t$ trong tập xác định của T
+$$
+H(t) = \P(T>t), \quad 0<t< \infty
+$$
+dễ dàng nhận thấy $H(t)$ có mối quan hệ với hàm phân bố tích lũy $F(t) = \P(T \le t)$, ta có $H(t) = 1 - F(t)$. Vì thế $H(t)$ là một hàm không tăng, có giới hạn phải của $t$ với $F(0) = 1$ và $\lim_{t\to \infty}F(t)=0$.
+
+## Biến thời gian liên tục
+
+Hàm mật độ xác suất (PDF) của $T$ là 
+$$
+f(t) = -\frac{dF(t)}{dt}
+$$
+với TXĐ của T là $[0,\infty)$. để dễ dàng, ta hãy nhớ rằng hàm $f(t)$ chính là mật độ của xác suất giữa $t$ và $t+h$ với $h \to 0$. Ta có thể ký hiệu như sau 
+$$
+f(t)h \approx \P(t \le T < t+h) = S(t) - S(t+h) 
+$$
+với $f(t) \ge 0$, $\int_0^{\infty}f(t)dt = 1$, và 
+$$
+S(t) = \int_t^{\infty}f(s)ds.
+$$
+
+`r colorize("*Hàm nguy cơ*","tomato")` được định nghĩa như sau 
+$$
+\lambda(t) = \lim_{h\to 0^+}\frac{\P(t \le T <t+h|T\ge t)}{h},
+(\#eq:eq1)
+$$
+gọi là tốc độ tức thời tại thời điểm mà sự kiện xảy ra (bệnh nhân tử vong), cho rằng bệnh nhân đó đã sống tới thời gian $t$. Hàm nguy cơ có mối quan hệ với hàm mật độ và hàm sống sót. Từ `r lb(eq1)` ta có 
+$$
+\lambda(t) = -\frac{f(t)}{S(t)} = -\frac{d\ln S(t)}{dt}.
+$$
+
+Đạo hàm hai vế ta có 
+$$
+S(t) = \exp\bigg[-\int_0^t\lambda(s)ds\bigg] = \exp[-\Lambda(t)],
+(\#eq:eq2)
+$$
+với $\Lambda(t)$ gọi là `r colorize("_hàm nguy cơ tích lũy_","tomato")`. Nếu ta lấy đạo hàm hai vế của `r lb(eq2)` ta được
+$$
+f(t) = \lambda(t)\exp[-\Lambda(t)].
+(\#eq:eq3)
+$$
+
+Ngoài ra có một đại lượng cũng được sử dụng nhiều trong phân tích là `r colorize("_expected residual life_","tomato")` tại thời điểm $t$,
+$$
+r(t) = \E(T-t|T \ge t),
+$$
+đại lượng này giải thích thời gian kỳ vọng còn lại của bệnh nhân biết rằng bệnh nhân vẫn chưa tử vọng tại thời điểm $t$. Ta có thể biến đổi sau
+$$
+r(t) = \frac{\int_t^{\infty}(s-t)f(s)ds}{S(t)},
+$$
+công thức trên có thể chứng minh thành 
+$$
+r(t) = \frac{\int_t^{\infty}S(s)ds}{S(t)},
+(\#eq:eq4)
+$$
+dưới điều kiện $\E(T) < \infty$, nghĩa là nếu $\E(T) < \infty \Rightarrow \lim_{t \to \infty}tF(t) =0$. 
+
+::::{.blackbox .mathematics}
+::: {.center}
+Ta xét $\int_t^{\infty}(s-t)f(s)ds$ tương đương với 
+$$
+\begin{aligned}
+&= -(s-t)S(s)\bigg|_t^{\infty} + \int_t^{\infty} S(s)ds \\
+&= -\lim_{s \to \infty}sS(s) +   \int_t^{\infty} S(s)ds,
+\end{aligned}
+$$
+như vậy nếu $\lim_{s \to \infty} sS(s) = 0$ thì ta được kết quả `r lb(eq4)`. Phần còn lại ta cần xem xét là vì sao $\E(T) < \infty \Rightarrow \lim_{t \to \infty} tS(t) = 0$.
+
+Ta xét $\int_{t}^{\infty}sS(s)ds$ tương đương với
+$$
+\int_0^{\infty}(u+t)f(u+t)d(u+t) = \E(u+t) = \E(u) +t,
+$$
+với $u = s-t$. Như vậy nếu $\E(U) < \infty$ thì $\int_{t}^{\infty}sS(s)ds < \infty$, ta thấy rằng tích phân này chỉ xác định khi $\lim_{s \to \infty} sS(s) < \infty$. Giới hạn này là dạng $\infty.0$, như vậy nó sẽ bằng 0 nếu tốc độ của $S(s)$ nhanh hơn tốc độ của $s$ khi $s \to \infty$. Ta có thể viết giải thích này dưới công thức toán học là $S(s) = o(1/s)$.
+:::
+::::
+
+Nếu $t = 0$ ta có 
+$$
+\E(T) = r(0) = \int_0^{\infty}F(s)ds.
+(\#eq:eq5)
+$$
+Từ `r lb(eq4)` ta có 
+$$
+\frac{1}{r(t)} = -\frac{d}{dt}\ln\int_t^{\infty}S(s)ds,
+$$
+lấy tích phân hai vế cận từ $0 \rightarrow t$, ta được
+$$
+\int_0^t\frac{ds}{r(s)} = -\ln\int_t^{\infty}S(s)ds+\ln r(0),
+$$
+cuối cùng thu được 
+$$
+S(t) = \frac{r(0)}{r(t)}\exp\bigg[-\int^t_0\frac{du}{r(u)}\bigg]
+$$
+chính là hàm số sống sót.
+
+## Biến thời gian rời rạc
+
+Nếu $T$ là cột thời gian rời rạc tại các giá trị $\{a_i\}_{i=1,2,\dots}$ và ta có hàm khối xác suất (probability mass function-PMF) là 
+$$
+f(a_i)=\P(T=a_i), \quad i = 1,2,\dots
+$$
+`r colorize("hàm sống sót", "tomato")` là
+$$
+S(t) = \sum_{j:a_j>t}f(x_j).
+$$
+Hàm nguy cơ là 
+$$
+\lambda_i = \P(T=a_i|T \ge a_i) = \frac{f(a_i)}{S(a^-_i)}, \quad i = 1,2,\dots
+$$
+với $S(a^-) = \lim_{t\to a^-}S(t)$, tương ứng với `r lb(eq2)` và `r lb(eq3)` ta có 
+$$
+S(t) = \prod_{j:a_j \le t}(1-\lambda_j),
+(\#eq:eq6)
+$$
+và 
+$$
+f(a_i) = \lambda_i\prod_{j=1}^{i-1}(1-\lambda_j).
+(\#eq:eq7)
+$$
+Ta có thể giải thích hai phương trình trên như sau: đối với `r lb(eq6)`, ta thấy rằng $S(t)$ chính là xác suất mà bệnh nhân tử vong sau mốc thời gian $t$, nghĩa là $\P(T>t)$. Giả sử $t = a_t$, ta có 
+$$
+\P(T>a_t) = \P(T>a_t|T>a_{t-1})\P(T>a_{t-1})
+$$
+ta lại có $\P(T>a_{t-1}) = \P(T > a_{t-1}|T>a_{t-2})$, như vậy 
+$$
+\P(T>a_t) = \P(T>a_t|T>a_{t-1})\P(T > a_{t-1}|T>a_{t-2})
+$$
+biến đổi theo cách này ta sẽ có 
+$$
+\P(T>a_t) = \P(T>a_t|T>a_{t-1})\P(T > a_{t-1}|T>a_{t-2})\dots\P(T>a_1|T>a_0)\P(T>a_0)
+$$
+ta biết rằng $\P(T>a_0) = \P(T>0) = 1$, nên 
+$$
+\P(T>a_t) = \prod^t_{i=1}\P(T>a_i|T>a_{i-1}).
+$$
+Mà ta có $1-\lambda_i = \P(T>a_i|T > a_{i-1})$, nên ta suy ra `r lb(eq6)`. Bằng cách suy luận tương tự ta cũng có thể suy ra `r lb(eq7)`. 
+
+Đối với cả hai biến liên tục hay rời rạc ta đều có thể suy luận như sau: gọi 
+$$
+d\Lambda(t) = \lambda(t)dt = \Lambda(t+dt^-)- \Lambda(t^-) = \P(t \le T < t+dt|T \ge t),
+$$
+ta có 
+$$
+S(t) = \lim_{r \to \infty}\prod_{k=1}^r[1 - d\Lambda(u_k)] = \lim_{r \to \infty}\prod_{k=1}^r\big\{1 - [\Lambda(u_k) -\Lambda(u_{k-1})]\big\},
+$$
+trong đó $0 = u_0<u_1<\dots<u_r=t$. Như vậy khi $r \to \infty$ thì $(u_i-u_{i-1}) \to 0$. Đối với trường hợp biến thời gian liên tục ta có thể chứng minh rằng 
+$$
+S(t) = \lim_{r \to \infty}\prod^r_{k =0}[1-d\Lambda(u_{k})] = \exp\bigg[-\int_0^t\lambda(u)du\bigg].
+$$
+
+::::{.blackbox .mathematics}
+:::{.center}
+Lấy logarit tự nhiên của 2 vế ta có 
+$$
+\lim_{r \to \infty}\sum_{k=0}^r\ln[1-d\Lambda(u_k)] = -\int_0^t\lambda(u)du
+$$
+ta có $\lim_{x\to 0}\ln(1-x) = -x$, nghĩa là $\ln(1-x\Delta x) = -x\Delta x + o(\Delta x)$. Tương tự ta có $\ln[1-\lambda(u)\Delta u] = \lambda(u)\Delta u + o(\Delta u)$, nếu lấy tổng ta sẽ có 
+$$
+\sum_{k=0}^{\infty}\ln[1-\lambda(u_k)\Delta u_k] = -\sum_{k=0}^{\infty}\lambda(u_k)\Delta u_k + o(\Delta u_k),
+$$
+chính là xấp xỉ của tích phân Riemann $\int_0^t \lambda(u)du$. 
+:::
+::::
+
+Đối với biến thời gian rời rạc thì 
+$$
+\begin{aligned}
+d\Lambda(t) &= \P(t \le T < t+dt|T \ge t) \\
+&= \P(t \le T \le t|T \ge t) \\
+&= \P(T = t|T \ge t) \\
+&= \lambda,
+\end{aligned}
+$$
+vì thế ta suy ra `r lb(eq6)`.
+ 
+# Ước lượng hàm sống sót
+ 
+## Ước lượng Kaplan-Meier
+
+Ta có `r colorize("_hàm phân bố cực_","tomato")` (empirical distribution function- EDF) có dạng  
+$$
+F_n(x) = \frac{\text{Số bệnh nhân có giá trị}\le x}{n},
+$$
+chính là ước lượng của CDF $\P(X \le x)$. 
+
+Trong phân tích sống sót, rất thường xuyên hàm EDF được sử dụng để thể hiện thời gian sống sót của các bệnh nhân. Trong trường hợp không có censor xảy ra thì hàm tồn tại sẽ được biểu diễn thông qua CDF, nghĩa là $S(t) = 1 - F(t)$, và là một hàm bậc thang giảm dần, với mỗi bậc giảm 1 đơn vị. Tuy nhiên trong thực thế censor gần như tồn tại trong tất cả các dữ liệu sống sót vì thế ta cần một phương pháp để ước lượng CDF. 
+
+Để dễ hình dung ta hãy xem xét các khoảng thời gian $[t_j,t_{j+1})$ với $j = 0,\dots,k$, có tất cả $d_j$ bệnh nhân tử vong và $m_j$ bệnh nhân là censor tại các mốc thời gian $t_{j1}, t_{j2},\dots,t_{jm_j}$. Ta cũng lấy $n_j = (d_j+m_j)+\dots+(d_k+m_k)$ chính là tổng số bệnh nhân có nguy cơ ngay trước mốc thời gian $t_{j+1}$. Xác suất tử vong tại thời điểm $t_j$ sẽ là 
+$$
+\P(T=t_j) = S(t_j^-)-S(t_j).
+$$
+
+Ta cũng giả sử rằng thời gian censor tại $t_{jl}$ là 
+$$
+\P(T>t_{jl}) = S(t_{jl}).
+$$
+Như vậy, mỗi mốc thời gian censor $t_{jl}$ chỉ cung cấp thông tin rằng một bệnh nhân nào đó vẫn chưa tử vong tới thời điểm $t_{jl}$. Như vậy giả thuyết độc lập của censoring là hợp lý. Ta có thể suy ra hàm likelihood là
+$$
+L = \prod_{j=1}^k\bigg\{\Big[S(t_j^-)-S(t_j)\Big]^{d_j}\prod_{l=1}^{m_j}S(t_{jl})\bigg\},
+$$
+đây chính là một hàm số của EDF và đạt cực đại khi $\hat{S} = \arg\max L$.
+
+Ở đây ta thấy rằng $\hat{S}(t)$ là một hàm số không liên tục tại các mốc thời gian tử vong mà ta quan sát được. Hơn nữa $t_{jl} > t_j$, nên $S(t_{jl})$ đạt cực đại tại $S(j)$. Vì thế $\hat{S}_{MLE}(t)$ được xác định thông qua  các $\{\hat{\lambda}_i\}_{i=1,\dots,k}$ tại $\{t_i\}_{i=1,\dots,k}$. Dựa vào kết quả từ phần trước ta có 
+$$
+\hat{S}(t_j) = \prod_{l=1}^j(1-\hat{\lambda}_l)
+(\#eq:eq10)
+$$
+và
+$$
+\hat{S}(t_j^-) = \prod_{l=1}^{j-1}(1-\hat{\lambda}_l),
+(\#eq:eq11)
+$$
+như vậy các $\hat{\lambda}_l$ được chọn để hàm số sau đạt cực đại
+$$
+\prod_{j=1}^k\bigg[\lambda_j^{d_j}\prod_{l=1}^{j-1}(1-\lambda_l)^{d_j}\prod_{l=1}^j(1-\lambda_l)^{m_j} \bigg]
+$$
+ta có thể rút gọn công thức trên như sau 
+$$
+\prod_{j=1}^k\bigg[\frac{\lambda_j^{d_j}}{(1-\lambda_j)^{d_j}}\prod_{l=1}^j(1-\lambda_l)^{d_j+m_j} \bigg].
+$$
+
+Ta xét $\prod_{j=1}^k\prod_{l=1}^j(1-\lambda_l)^{d_j+m_j}$, phần này có thể chỉ ra rằng tương đương với $\prod_{j=1}^k(1-\lambda_j)^{n_j}$. Như vậy phương trình trên sẽ tương đương với 
+$$
+\prod_{j=1}^k\bigg[\frac{\lambda_j}{(1-\lambda_j)}\bigg]^{d_j}(1-\lambda_j)^{n_j}
+(\#eq:eq12)
+$$
+
+::::{.blackbox .mathematics}
+:::{.center}
+Ta khai triển $\prod_{j=1}^k\prod_{l=1}^j(1-\lambda_l)^{d_j+m_j}$ với $k=4$, để đơn giản tạm ký hiệu $(1-\lambda_l) = p_l$, ta sẽ được 
+
+$$
+\begin{aligned}
+&j =1: \quad p_1^{d_1+m_1} \\
+&j =2: \quad (p_1p_2)^{d_2+m_2} \\
+&j=3: \quad (p_1p_2p_3)^{d_3+m_3} \\
+&j=4: \quad (p_1p_2p_3p_4)^{d_4+m_4}
+\end{aligned}
+$$
+ta có thể viết lại như sau 
+$$
+\begin{aligned}
+&p_1^{d_1+m_1+d_2+m_2+d_3+m_3+d_4+m_4} &&= p_1^{n_1} \\
+&p_2^{d_2+m_2+d_3+m_3+d_4+m_4} &&=  p_2^{n_2} \\
+&p_3^{d_3+m_3+d_4+m_4} &&= p_3^{n_3} \\
+&p_4^{d_4+m_4} &&= p_4^{n_4}
+\end{aligned}
+$$
+suy ra 
+$$
+\prod_{j=1}^4\prod_{l=1}^j(p_l)^{d_j+m_j} =\prod_{j=1}^4p_j^{n_j}
+$$
+như vậy , thay $p_j = 1-\lambda_j$ và $4 \rightarrow k$, ta có thể thấy rằng $\prod_{j=1}^k\prod_{l=1}^j(1-\lambda_l)^{d_j+m_j}$ có thể viết thành $\prod_{j=1}^k(1-\lambda_j)^{n_j}$
+:::
+::::
+
+Dễ dàng nhận thấy `r lb(eq12)` chính là hàm likelihood của phân bố binomial. và ta có thể dễ dàng xác định rằng 
+$$
+\hat{\lambda}_{j_{MLE}} = \frac{d_j}{n_j}, \quad j = 1,\dots,k
+$$
+như vậy ta dễ dàng tìm được ước lượng Kaplan-Meier của hàm sống sót là 
+$$
+\hat{S}(t) = \prod_{j:t_j\le t}\frac{n_j-d_j}{n_j}
+(\#eq:eq13)
+$$
+
+Như vậy dựa vào công thức trên ta có thể tính ra và vẽ đồ thị Kaplan-Meier. Lưu ý là cái mốc thời gian xem xét chính là các mốc thời gian bệnh nhân tử vong, các mốc thời gian censor sẽ không được xem xét. Sau khi tính ra được ước lượng của hàm sống sót tại các mốc thời gian tử vong và vẽ biểu đồ KM, ta đã hoàn thành phần thống kê mô tả. Để tiến đến phân thống kê suy luận ta cần hiểu về phân bố của các ước lượng dưới cái nhìn tiệm cận hay mẫu lớn (asymptotic hay large-sample). 
+
+Ta có 
+$$
+\ln\hat{S}(t) = \sum_{j:t_j \le t} \ln(1-\hat{\lambda}_j),
+$$
+Ta sử dụng phương pháp Delta để tìm phương sai của $\ln\hat{S}(t)$, ta có 
+$$
+\hat{\V}[\ln\hat{S}(t)] = \sum_{j:t_j \le t}(1-\hat{\lambda}_j)^{-2}\hat{\V}(1-\hat{\lambda}_j) =  \sum_{j:t_j \le t}\frac{d_j}{n_j(n_j-d_j)}. 
+$$
+
+Từ đó ta có thể tính được phương sai của $\hat{S}(t)$ là 
+$$
+\hat{\V}[\hat{S}(t)] = \hat{S}^2(t)\sum_{j:t_j \le t}\frac{d_j}{n_j(n_j-d_j)}.
+(\#eq:eq14)
+$$
+
+::::{.blackbox .mathematics}
+:::{.center}
+Đầu tiên ta thấy rằng $\lambda$ đóng vai trò như một tham số xác suất trong phân bố binomial, nghĩa là $d \sim \mathcal{Bin}(n,\lambda)$. Ta sẽ có $\hat{\lambda}_{MLE} = d/n$, như vậy 
+$$
+\V[1-\hat{\lambda}_{MLE}] = \frac{n\lambda(1-\lambda)}{n^2} = \frac{\lambda(1-\lambda)}{n}
+$$
+thế $\lambda = \hat{\lambda}_{MLE}$ ta được
+$$
+\V[1-\hat{\lambda}_{MLE}] = \frac{d(n-d)}{n^3}
+$$
+
+Tiếp theo ta áp dụng phương pháp Delta để tìm phương sai của một hàm số $h(1-\lambda)$. Phương pháp này chính là khai triển một hàm số bằng phương pháp Taylor tạo thành một phương trình tuyến tính để tính xấp xỉ,  rồi lấy phương sai của hai hệ thức đầu tiên. Nghĩa là ta sẽ có kết quả tổng quát sau
+$$
+\V[g(X)] \approx \bigg\{\frac{dg(X)}{dX}\bigg\}^2\V(X).
+$$
+
+ta cần tính $\V\big[\ln(1-\hat{\lambda}_{MLE})\big]$, áp dụng công thức trên ta có 
+$$
+\begin{aligned}
+\V\big[\ln(1-\hat{\lambda}_{MLE})\big] &= (1-\hat{\lambda})^{-2}{\V}(1-\hat{\lambda}) \\
+&= \frac{n^2}{(n-d)^2}\frac{d(n-d)}{n^3} \\
+&= \frac{d}{n(n-d)}.
+\end{aligned}
+$$
+Kết quả trên giống với kết quả trong `r lb(eq14)`.
+
+Tiếp theo, gọi $X = \ln[\hat{S}(t)]$, ta tiếp tục áp dụng phương pháp Delta để tính $\V(e^X)$, ta có
+$$
+\begin{aligned}
+\V(e^X) &=  (e^X)^2\V(X)\\
+&=\V[\hat{S}(t)] \\
+&=  \hat{S}^2(t)\V\big\{\ln[\hat{S}(t)]\big\}\\
+&= \hat{S}^2(t)\sum_{j:t_j \le t}\frac{d_j}{n_j(n_j-d_j)},
+\end{aligned}
+$$
+chính là `r lb(eq14)`
+:::
+::::
+
+Từ đây ta có thể xây dựng các _khoảng tin cậy (confidence interval-CI)_ của từng mốc thời gian tử vong. Ta sẽ có khoảng tin cậy 95% của $S(t)$ chính là $\hat{S}(t) \pm \Phi(0.975)\hat{V}[\hat{S}(t)]^{1/2}$. Nhớ rằng tập giá trị của $S(t)$ chính là $[0,1]$, nêu nếu giá trị của khoảng tin cậy nằm ngoài tập giá trị này thì ta cần chọn giá trị 0 hoặc 1 thay thế. Ngoài ra một phương pháp nhằm tránh tình trạng này xảy ra chính là dùng một số hàm số one-to-one để biến đổi, tìm khoảng tin cậy của hàm số đó, rồi lấy hàm ngược lại của khoảng tin cậy này. Nghĩa là nếu ta cần tìm khoảng tin cậy của $X$, ta sẽ tìm khoảng tin cậy của $h(X)$, sau khi ta có khoảng tin cậy của $h(X)$ là $a$ và $b$, ta sẽ suy ra khoảng tin cậy của $X$ chính là $h^{-1}(a)$ và $h^{-1}(b)$. Hai trong số những hàm biến đổi được sử dụng phổ biến nhất là hàm logarit tự nhiên và hàm logarit tự nhiên nhân đôi hay còn gọi là hàm _log-log_. 
+
+## Ví dụ về ước lượng Kaplan-Meier
+
+Ta xem xét ví dụ sau
+
+```{r, echo=F}
+dt = read.table("data/Time to discontinuation of the use of an IUD.dat", header = T)
+reactable::reactable(dt)
+```
+
+Ta sẽ lần lượt tính các ước lượng và khoảng tin cậy của hàm sống sót như sau
+
+```{r}
+time_int = which(dt$status==1)
+nj = map_dbl(time_int, function(i)  nrow(dt[i:nrow(dt),]))%>% c(nrow(dt),.)
+dj = rep(1, length(time_int))%>% c(0,.)
+result = tibble(time_int = c(0, dt$time[time_int])%>% paste0(.,"-"), dj = dj, nj = nj)%>%
+  mutate(prob = (nj-dj)/nj)%>%
+  mutate(St = cumprod(prob)%>% round(digits = 4))%>%
+  mutate(se = sqrt(St^2*cumsum(dj/(nj*(nj-dj)))) )%>%
+  mutate(lower  = St - qnorm(0.975)*se, upper  = St + qnorm(0.975)*se )%>%
+  mutate(lower = ifelse(lower <0,0,lower), upper = ifelse(upper >1,1,upper))%>%
+  mutate(across(is.numeric, round,digits=3))
+gt::gt(result)
+```
+
+Ta dùng package `survival` để tính 
+
+```{r}
+out = survival::survfit(Surv(time,status)~1, data = dt, conf.type = "plain")
+broom::tidy(out)%>%
+  relocate(conf.low, .before = "conf.high")%>%
+  mutate(across(is.numeric, round,digits = 4))%>%
+  filter(time %in% c(0,  10,  19,  30,  36,  59,  75,  93,  97, 107))%>%
+  gt::gt()
+```
+
+Như vậy ta thu được hai kết quả như nhau. Ngoài ra package `survival` còn hổ trợ nhiều công cụ dành riêng cho phân tích sống sót. Đầu tiên là biểu đồ KM
+
+```{r}
+survminer::ggsurvplot(out, risk.table = TRUE, data = dt)
+```
+
+Tiếp theo là kết quả của trung vị 
+
+```{r}
+broom::glance(out)%>% gt::gt()
+```
+
+
+::::{.blackbox}
+Mình có viết một hàm để tính toán tất cả các giá trị cần thiết, biểu đồ, và sẽ tự động tạo ra một file excel với format đã được điều chỉnh. Mình cũng share ở đây 
+
+```{r, eval=FALSE}
+library(tidyverse)
+
+func = function(data, strata = NULL, increment = 3,
+                tab_number = 1,outcome = "...", grid_remove = FALSE){
+
+ pacman::p_load(survival, tidyverse, magrittr, xlsx)
+ stopifnot("time" %in% names(data) & "status" %in% names(data))
+ #####
+ for_unit_set = function(ddd){
+  md_fit = survival::survfit(Surv(time, status) ~ 1, data = ddd)
+  res1<-
+   md_fit%>%
+   broom::glance()%>%
+   select(N = n.start, n.events = events,Mean = rmean, SD = rmean.std.error ,Median = median,
+          conf.low, conf.high)%>%
+   dplyr::mutate(`Mean (SE)` = paste0(round(Mean,2), " (",round(SD,2),")"))%>%
+   dplyr:: mutate(`Median survival (95% CI)` = paste0(round(Median)," (", round(conf.low,2),", ",round(conf.high),")"))%>%
+   dplyr::mutate(`Number of patients at risk` = round(N,2)%>% paste0(),
+                 `Count(%) of patients with event` = paste0(round(n.events,2),
+                                                            " (",round(n.events/N*100,2),")"))%>%
+   select(`Number of patients at risk`,
+          `Count(%) of patients with event`,
+          `Median survival (95% CI)`,
+          `Mean (SE)`
+
+   )%>%
+   pivot_longer( cols = everything(),names_to = "Statistic", values_to = "Overall" )%>%
+    add_row(Statistic = "Descriptive statistics", .before = 1)
+
+  a = summary(md_fit, times = seq(0,228,increment))
+
+  res2 = tibble(Statistic = paste0(a$time), `Overall` = paste0(round(a$surv,2)," (",
+                                                               round(a$lower,2),", ",
+                                                               round(a$upper,2),")"  ))%>%
+    add_row(Statistic = "Kaplan-Meier estimates", .before = 1 )
+  res = bind_rows(res1,res2)
+  return(res)
+ }
+ #######
+ ######
+ ######
+ group = list(
+  Overall = rep("overall",nrow(data))
+ )
+
+ if(!is.null(strata)){
+  stopifnot(sum(strata%in% names(data)) ==length(strata))
+
+  group2 = map(strata%>% purrr::set_names(), ~pull(data,{{.}}))
+  group = append(group, group2)
+ }
+ group = map(group, as.character)
+
+ d = map(group, ~{group_nest(data, cluster = .)%>%
+  mutate(data = `names<-`(data, cluster))})%>%
+  reduce(bind_rows)
+
+ r = mutate(d, stats = map(data,for_unit_set))%>%
+  mutate(stats = imap(stats, ~`names<-`(.x, c("statistic",.y))))
+
+ if(!is.null(strata)){
+  my_formula = map(strata%>% purrr::set_names(),~paste0("Surv(time,status)~",.))
+
+  my_pv<-
+   imap(my_formula, ~ {
+    survival::survdiff(formula = as.formula(.x), data = data)%>%
+     broom::glance()%>%
+     select(p.value)%>%
+    mutate(term = .y, .before =1)%>%
+     dplyr::mutate(across(p.value,~ ifelse(.<0.001, "< 0.001", paste0(round(.,3)))))
+   })
+  my_pv<-
+  imap(my_pv,~{
+   if(nrow(.x)>1){
+    mutate(.x, term = str_remove(term, .y) )
+   } else .x
+  })
+  my_pv<-
+   imap(my_pv, ~ switch((nrow(.x)>1)+1,., add_row(.x, term = .y, p.value = NA, .before = 1)))%>%
+   reduce(bind_rows)%>%
+   rename(statistic = term, overall = p.value)%>%
+   add_row(statistic = "P.values", overall = NA, .before = 1)
+
+  result = reduce(r$stats,inner_join, by = "statistic")%>%
+   full_join(my_pv, by = c("statistic","overall"))
+ }else {
+  result = reduce(r$stats,inner_join, by = "statistic")
+ }
+ ###### plotting#########################
+
+ group = c("1")%>% `names<-`("overall")
+ group = switch((is.null(strata))+1,c(group,strata%>% purrr::set_names()),group )
+ my_plot<-
+ purrr::map(group, function(i){
+
+  my_f = paste0("Surv(time,status)~",i) %>% as.formula()
+
+   out = survival::survfit(formula=  my_f, data = data)
+   out$call$formula<- my_f
+   km = survminer::ggsurvplot(out, risk.table = TRUE, data = data)
+   return(km)
+ })
+ ####################### extract sets to excel file ##########################
+ result<- purrr::modify(result,~ifelse(is.na(.),"",.))
+ wb = xlsx::createWorkbook(type = "xlsx") # create wookbook
+
+ TITLE_STYLE <- xlsx::CellStyle(wb)+
+   xlsx::Font(wb,  heightInPoints=16, color="blue", isBold=TRUE, underline=1) # make title style
+
+ TABLE_COLNAMES_STYLE <- xlsx::CellStyle(wb) +  # make column style
+   xlsx::Font(wb, isBold=TRUE) + xlsx::Alignment(wrapText=TRUE, horizontal="ALIGN_CENTER") +
+   xlsx::Border(color="black", position=c("TOP", "BOTTOM"),pen=c("BORDER_THICK", "BORDER_THICK"))
+
+ CELL_STYLE =  xlsx::CellStyle(wb)+ xlsx::Font(wb, isBold = TRUE)+ # cell style
+   xlsx::Border(color="black", position=c("TOP"), pen=c("BORDER_THICK"))
+ CELL_STYLE2 =  xlsx::CellStyle(wb)+ xlsx::Font(wb, isBold = FALSE)+ # cell style
+   xlsx::Border(color="black", position=c("BOTTOM"), pen=c("BORDER_THICK"))
+ #---------------------------------------------------------------------------------
+ # create a sheet
+ sheet = xlsx::createSheet(wb, sheetName = "Sheet 1" )
+ # add title ---------
+ xlsx.addTitle<-function(sheet, rowIndex, title, titleStyle){
+   rows <- xlsx::createRow(sheet,rowIndex=rowIndex)
+   sheetTitle <-xlsx::createCell(rows, colIndex=1)
+   xlsx::setCellValue(sheetTitle[[1,1]], title)
+   xlsx::setCellStyle(sheetTitle[[1,1]], titleStyle)
+ }
+
+my_title = paste0("Table ",tab_number,": Time to event analysis of ", outcome)
+xlsx.addTitle(sheet, rowIndex=1, title=my_title, titleStyle = TITLE_STYLE)
+
+ # add table --------------
+ xlsx::addDataFrame(result, sheet, startRow=3, startColumn=1, colnamesStyle = TABLE_COLNAMES_STYLE)
+
+ # Change column width
+ xlsx::setColumnWidth(sheet, colIndex= 2, colWidth = 30)
+ xlsx::setColumnWidth(sheet, colIndex= 3:(ncol(result)+1), colWidth = 17)
+
+ # add cell style
+ row_ind = which(result$statistic %in% c("Descriptive statistics","Kaplan-Meier estimates","P.values"))
+ rows <- xlsx::getRows(sheet, rowIndex=row_ind+3 )  # get rows
+ cells <- xlsx::getCells(rows, 1:ncol(result)+1)
+ purrr::walk(cells,~xlsx::setCellStyle(.,CELL_STYLE))
+ # for last row
+ row2 = xlsx::getRows(sheet, rowIndex=nrow(result)+3 )
+ cells2 <- xlsx::getCells(row2, 1:ncol(result)+1)
+ purrr::walk(cells2,~xlsx::setCellStyle(.,CELL_STYLE2))
+
+ for(i in 1:length(my_plot)){
+   filename = paste0(names(my_plot)[i],".png")
+   png(filename, height=900, width=1300, res=140, pointsize=2)
+   print(my_plot[[i]])
+   dev.off()
+
+   xlsx::addPicture(filename, sheet, scale = 1, startRow = 3+35*(i-1),
+                    startColumn = ncol(result)+4)
+   res<- file.remove(filename)
+ }
+xlsx::saveWorkbook(wb,"Time-to-event-analysis.xlsx")
+if(grid_remove){
+   wb <- openxlsx::loadWorkbook(file ="Time-to-event-analysis.xlsx")
+   openxlsx::showGridLines(wb,"Sheet 1", showGridLines = FALSE)
+   openxlsx::saveWorkbook(wb,"Time-to-event-analysis.xlsx", overwrite = T)
+}
+##########################################################################
+return(list("table" = result,"plot" = my_plot))
+}
+
+```
+
+Mình sẽ thử chạy hàm trên với dữ liệu `cancer` trong package `survival` như sau 
+
+```{r, eval=FALSE}
+r = func(data = survival::cancer, increment = 40, strata = c("sex"))
+```
+
+kếu quả thu được là file excel như sau 
+
+```{r, echo=FALSE}
+knitr::include_graphics(rep("excel.PNG"))
+```
+::::
+
+# So sánh các biểu đồ sống sót
+
+Trong các ứng dụng về clinial trial ta thường hay so sánh hiệu quả của hai đến nhiều phương pháp điều trị với nhau. Dưới góc nhìn của thống kê thì đây là bài toán so sánh CDF của hai quần thể khác nhau. Trong phần này ta sẽ bàn về các phương pháp kiểm định thường được sử dụng trong phân tích sống sốt. Ta vẫn tiếp tục xem xét các quần thể đồng nhất, nghĩa là ta bỏ qua các biến phân nhóm, ví dụ như tuổi, giới tính, cân nặng... tất cả những đặc tính khác nhau này của từng bệnh nhân đều không được xem xét. 
+
+## So sánh hiệu quả của hai phương pháp điều trị
+
+### Kiểm định Wilcoxon suy rộng của Gehan
+
+Gọi $\{x_i,\delta_{1i}\}_{i=1}^{n_1}$ là thời gian bệnh nhân tử vong hay censor của nhóm điều trị I, và $\{y_i,\delta_{2i}\}_{i=1}^{n_2}$ là thời gian bệnh nhân tử vong hay censor của nhóm điều trị II. Trong đó $\delta=0$ là censor và $1$ là tử vong. Tiếp theo ta gọi $r_1$ là tổng số bệnh nhân tử vong của nhóm điều trị I và $r_2$ là số bệnh nhân tử vong của nhóm điều trị II, tức là 
+$$
+r_g = \sum_{j=1}^{n_g}\I(\delta_{gj}=1), \quad g = 1,2.
+$$
+Để dễ hiểu ta sẽ lấy ví dụ sau, ta có group I có các thời gian là 
+$$
+\begin{aligned}
+&x = 23, 16,18,20,24 \\
+&\delta_1 = 1,0,0,0,0
+\end{aligned}
+$$
+group II là 
+$$
+\begin{aligned}
+&x = 15,18,19,19,20 \\
+&\delta_1 = 1,1,1,1,1
+\end{aligned}
+$$
+
+```{r}
+d1 = dplyr::tibble(time = c(23,16,18,20,24,15,18,19,19,20),
+                   status = c(1,0,0,0,0,1,1,1,1,1),
+                   trt = rep(c("active","control"), c(5,5))
+                   )
+```
+
+__Phương pháp Gehan được tiến hành như sau__
+
+Mệnh đề kiểm định là 
+$$
+\begin{aligned}
+&H_0: S_1 = S_2 \quad \text{(cả hai phương pháp điều trị đạt hiệu quả như nhau)} \\
+&H_1: S_1 > S_2 \quad \text{(Nhóm điều trị I đạt hiệu quả tốt hơn nhóm điều trị II)}
+\end{aligned}
+$$
+
+ Đầu tiên ta trộn tất cả các thời gian tử vong và censor của 2 nhóm, ta $n_1+n_2 = 5+5 = 10$ quan sát
+
+```{r fig1, fig.cap="Tập dữ liệu minh họa"}
+d1 %<>% dplyr::arrange(time)
+draw_table(d1)
+```
+
+Với mỗi quan sát thứ $i$ ta sẽ so sánh với $n_1+n_2-1$ quan sát còn lại, gọi giá trị đó là $U_{ij}$, ta có
+$$
+U_{ij} = \cases{
++1 \quad if \quad t_i > t_j \text{ hoặc } t_i^+ \ge t_j \\
+-1 \quad if \quad t_i < t_j \text{ hoặc } t_i \le t_j^+ \\
+0 \quad \text{các trường hợp khác}
+}
+$$
+và 
+$$
+U_i = \sum_{j=1}^{n_1+n_2}U_{ij}
+$$
+chính là số quan sát nhỏ hơn $t_i$ _trừ_ số quan sát lớn hơn $t_i$. Ngoài ra ta giả sử rằng censor luôn xảy ra sau tử vong, nên nếu $t_i = 18^+$ và $t_j= 18$ thì ta cộng thêm $1$ vào $U_i$. Và statistic Gehan được định nghĩa là
+$$
+U = \sum_{i=1}^{n_1+n_2}U_i\I(i\text{ thuộc nhóm I})
+$$
+như vậy có tất cả 
+$$
+n_1 +n_2 \choose n_1
+$$
+cách để chọn $n_1$ trong số $n_1+n_2$ quan sát, tức là biến ngẫu nhiên $U$ sẽ có $n_1 +n_2 \choose n_1$ giá trị. Vì thế ta có ước lượng phương sai của $U$ là 
+$$
+\hat{\V}(U) = \frac{n_1n_2}{(n_1+n_2)(n_1+n_2-1)}\sum_{i = 1}^{n_1+n_2}U^2_i
+$$
+Dưới điều kiện của tiệm cận thì statistic $U \sim \mathcal{N}(0,\hat{\V}(U))$, như vậy lấy $Z = U/[\hat{\V}(U)]^{1/2} \sim \mathcal{N}(0,1)$. 
+
+Phương pháp trên có thể tiến hành theo 2 bước 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- ====================== END ====================================== -->
+
+<!-- # *References* {.unnumbered} -->

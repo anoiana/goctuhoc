@@ -1,0 +1,163 @@
+---
+title: '&#128205; Đánh Giá Tính Ổn Định Của Propensity Score'
+author: 👦🏻 $\mathcal{An}$
+date: "&#x1F4C5; _`r {
+if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
+update=FALSE
+filename=knitr::current_input(dir = FALSE)
+mylist <- readRDS(file ='date_list.rds')
+if(update|!(filename%in%names(mylist))){
+mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
+saveRDS(mylist, file = 'date_list.rds')}
+readRDS(file ='date_list.rds')[[filename]]  }`_"
+abstract: |
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: ["../00_supp/header.html"]
+        before_body: "test.html"
+        after_body: "../00_supp/mycomment.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+---
+
+\def\emp{\varnothing}
+\usepackage{extarrows}
+ 
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("casual.jpg");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+
+
+::: {.watermark} 
+_DRAFT_
+:::
+
+
+```{r child="../00_supp/general_rmd.Rmd"}
+```
+
+Bài này dựa trên bài báo của @pan2016.
+
+# Recap 
+
+Giả sử $T$ là một biến nhị phân nhận hai giá trị $\{0,1\}$, trong đó $1$ là khi bệnh nhân thuộc nhóm điều trị active và $0$ thuộc nhóm control. Mỗi bệnh nhân có một nhóm bao gồm các biến được quy định trước điều trị, tạm gọi tập hợp các biến này là vector $\bf{X}_i = (X_{i1},X_{i2}, \dots, X_{ik})$ trong đó $i$ đại diện cho bệnh nhân thứ $i$, còn $k$ là số biến quy định trước điều trị. Propensity score sẽ được định nghĩa là một xác suất điều kiện khi bệnh nhân thuộc nhóm active biết rằng bệnh nhân đó thỏa các thôn tin được cung cấp bởi các biến trước điều trị $\bf{X}$. Nghĩa là 
+$$
+e(\bf{X}_i) = \P(T_i =1|\bf{X}_i),
+$$
+để xấp xỉ phân bố chuẩn, ta thường không sử dụng trực tiếp $e(\bf{X})$ mà sẽ biến đổi nó bằng hàm log, $\ln\Big(\frac{e(\bf{X})}{1-e(\bf{X})}\Big)$.
+
+# Giới thiệu 
+
+Như đã định nghĩa ở phần recap, $\bf{X}$ chính là một vector gồm các biến trước điều trị, những biến này chính là các thông tin ta có thể quan sát. Ngoài ra, sẽ tồn tại những biến không thể quan sát (nghĩa là các biến không có trong data), tạm gọi là $\bf{U} = (u_1,u_2,\dots,u_N)^{\top}$. Như vậy $\bf{X}^{(+u)} = (\bf{X},\bf{U})$ chính là tập hợp đầy đủ của các biến trước điều trị. Như vậy độ nhạy hay tính ổn định của ước lượng của propensity score được định nghĩa là sự khác biệt (hay thay đổi) giữa hai ước lượng của propensity score được tính bằng $\bf{X}$ và $\bf{X}^{(+u)}$. Nghĩa là 
+$$
+\Delta_i = e(\bf{X}_i^{(+u)}) - e(\bf{X}_i)
+(\#eq:eq21)
+$$
+Tuy nhiên vì $\bf{U}$ không được quan sát nên $\Delta$ sẽ không thể tính được theo lý thuyết. Nhưng ta có thể "mượn" thông tin từ các biến có thể quan sát để xác định $\Delta$ dưới điều kiện giả thuyết thì các biến $\bf{X}$ và $\bf{U}$ có ảnh hưởng lên ước lượng của các PS là tương tự nhau. Bằng cách này ta có thể ước lượng tính ổn định bằng cách xem mỗi biến trước thí nghiệm có thể quan sát như là các biến không thể quan sát, nghĩa là 
+$$
+\hat{\Delta}_{ij} = e(\bf{X}_i) - e(\bf{X}_i^{(-j)}), i  =1,\dots,N; j =1, \dots, K
+(\#eq:eq22)
+$$
+trong đó $\bf{X}^{(-j)}$ là vector của các biến trước thí nghiệm loại đi biến thứ $j$. Như vậy đối với mỗi bệnh nhân $i$ ta sẽ lần lượt tính $K$ giá trị $\{\hat{\Delta}_{ij}\}_{j=1,\dots,K}$. Như vậy, mỗi bệnh nhân sẽ có $K$ giá trị và tạo thành một phân bố, tạm kí hiệu phân bố này là $\Delta^*_i$. Cho mỗi bệnh nhân ta định nghĩa xác suất sau 
+$$
+R_i = \P(\min_{1\le j \le K}\hat{\Delta}_{ij} \le \Delta^*_i \le \max_{1 \le j \le K}\hat{\Delta}_{ij})
+(\#eq:eq23)
+$$
+Cho mỗi bệnh nhân nếu $R_i \ge 0.95$, thì ta kết luận ước lượng của PS là ổn định dưới sự ảnh hưởng của $\bf{U}$. Nếu như khoảng $80%$ số bệnh nhân có $R \ge 0.95$ thì tính ổn định được khẳng định trên toàn mẫu. Nghĩa là 
+$$
+\P(R) =  \frac{1}{N}\sum_{i=1}^N \I(R_i\ge0.95) \ge 0.8,
+$$
+
+Nếu $0.5 \le \P(R) \le 0.8$ thì tính ổn định sẽ được cảnh báo, và nếu là dưới $50%$ thì ước lượng của PS sẽ không ổn định. 
+
+Phần còn lại ta cần giải quyết là làm sao tính được $R_i$, bởi vì ta không biết phân bố thật sự của $\Delta^*_i$. Phương pháp cho vấn đề này là ta sẽ xấp xỉ hàm mật độ của nó bằng một trong những phân bố Pearson dựa vào bốn moment đầu tiên của $\Delta^*$, nghĩa là $\E({\Delta^*}^{m})$ với $m = 1,\dots,4$. Bốn moment này sẽ được ước lượng bằng công thức của kỳ vọng (mean), phương sai(variance), độ xiên(skewness) và độ nhọn(kurtosis). Như vậy ta sẽ có 
+$$
+\begin{split}
+&\hat{\mu}_{i1} = \frac{1}{K}\sum_{j=1}^K\hat{\Delta}_{ij},~~~~\text{và} \\
+&\hat{\mu}_{im} = \frac{1}{K}\sum(\hat{\Delta}_{ij} - \hat{\mu}_{i1})^m,~~~~m=2,3,4.
+\end{split}
+(\#eq:eq24)
+$$
+
+Từ 4 giá trị $\{\hat{\mu}_{im}\}_{m=1,2,3,4.}$ ta sẽ lập hệ phương trình và tìm các parameters của phân bố Pearson. Một khi đã có các parameters ta có thể dễ dàng tính các $R_i$. 
+
+# Thực hành
+
+Trong phần này ta sẽ sử dụng R và từng bước thực hiện các bước đã giải thích ở phần trước. Trong phần này ta sẽ sử dụng package `PearsonDS`để xác định các moments, parameters và xác suất $R$ trong `r lb('eq23')`. Ngoài ra, ta cũng có thể dựa vào @yang2019 để thiết lập các công thức cho phân bố Pearson. Lưu ý rằng có 7 loại phân bố Pearson khác nhau, tùy thuộc vào moments ta có mà sẽ có những phân bố có thể xác định và những phân bố không thể xác định. Tuy nhiên, phương pháp này sử dụng xấp xỉ các phân bố Pearson chứ không hoàn toàn chính xác, nên kết quả không hoàn toàn thuyết phục.  
+
+```{r}
+data("lalonde", package = "cobalt")
+
+param = c("age","educ","race","married","nodegree", "re74","re75")
+
+ex = WeightIt::weightit(treat ~ age+ educ+ race+ married+ nodegree+ re74+ re75, 
+                        data = lalonde, estimand = "ATO")$ps
+
+delta<-
+map(1:7,~{
+  
+  p = param[-.]
+  f = as.formula( paste("treat~", paste(p, collapse = "+")))
+  out = WeightIt::weightit(formula = f, data = lalonde, estimand = "ATO")
+  ex - out$ps
+  
+})%>% `names<-`(paste0("remove_",param))%>%
+  bind_cols()
+
+p = delta[1,]%>% unlist()
+
+R = 
+pmap_dbl(delta,~{
+  p = c(...)
+  moment = PearsonDS::empMoments(p)
+  parameters = PearsonDS::pearsonFitM(moments = moment)[2:5]
+  purrr::lift_dl(PearsonDS::ppearsonI, q = c(min(p),max(p)))(parameters)%>% diff()
+})
+mean(R>0.95)
+```
+
+Như vậy với tỉ lệ phần trăm ổn định dưới $10%$, ta có thể kết luận rằng propensity score không ổn định với các biến chưa quan sát.  
+
+
+
+
+
+
+
+
+
+<!-- ################################################################################################### -->
+***
+# 📝 _References_ {-}
+<!-- :::: {.blackbox data-latex=""} -->
+<!-- ::: {.center data-latex=""} -->
+<!-- **Proof:** -->
+<!-- ::: -->
+<!-- over here -->
+<!-- :::: -->

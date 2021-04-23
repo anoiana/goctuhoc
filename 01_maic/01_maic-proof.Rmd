@@ -1,0 +1,140 @@
+---
+title: "📍 MAIC Proof"
+author: 👦 $\mathcal{An}$
+date: "📅 `r format(Sys.Date(), format = '%B %d, %Y')`"
+output_dir: "docs"
+header-includes:
+   - \usepackage{amsmath}
+   - \usepackage{titling}
+   - \pretitle{\begin{flushleft}}
+   - \posttitle{\end{flushleft}}
+   - \usepackage{eso-pic,graphicx,transparent}
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: ["../00_supp/apa.csl"]
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("itc.jpg");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+```{r child="../00_supp/general_rmd.Rmd"}
+```
+
+
+Corresponding to an observed ipd is its empirical distribution $\hat{F}$ that means weights of all units are $1/n$, we aim to find $\bf{p} = (p_1, p_2, \dots, p_n)^{\top}$ such that the mean of 
+
+$$
+F_p = \sum p_ix_i = \mu.
+(\#eq:1)
+$$ 
+
+Note that equation \@ref(eq:1) is also hold for binary variables. A convenient measure of closeness is the _Kullback-Leibler_ distance
+
+$$
+d_{F_p}(F_p,\hat{F}) = \sum_{i=1}^n p_i\ln\bigg(\frac{1}{np_i}\bigg),
+(\#eq:2)
+$$
+
+Thus, it is required to minimize \@ref(eq:2) subject to $\sum p_ix_i = \mu$ and $\sum p_i = 1$. We shall use _Lagrange multipliers_ to solve this problem, the Lagrange multipliers is  
+
+$$
+\mathcal{L}(p_i,\lambda) = \sum_{i=1}^n p_i\ln\bigg(\frac{1}{np_i}\bigg) + \lambda\bigg(\sum_{i=1}^n p_ix_i -\mu\bigg),
+$$
+subject to $\sum p_i = 1$. 
+
+take derivative w.r.t $p_i$ and $\lambda$, respectively 
+
+$$
+\begin{aligned}
+&\frac{\partial\mathcal{L}}{\partial p_i} = -\ln(np_i) - 1 + \lambda x_i, \\
+&\frac{\partial\mathcal{L}}{\partial\lambda} = \sum_{i=1}^n p_ix_i - \mu.
+\end{aligned}
+(\#eq:3)
+$$
+
+Equating both equation in \@ref(eq:3) to 0, we have
+
+$$
+\begin{aligned}
+\frac{\partial\mathcal{L}}{\partial p_i} &= 0 \\
+&\Rightarrow p_i = \frac{\exp(\lambda x_i-1)}{n} \\
+&\Rightarrow \sum_{i=1}^n p_i = \frac{1}{n}\sum_{i=1}^n\exp(\lambda x_i-1) = 1 \\
+&\Rightarrow n = \frac{1}{e}\sum_{i=1}^n\exp(\lambda x_i) \\
+&\Rightarrow p_i = \frac{\exp(\lambda x_i)}{\sum_{i=1}^n\exp(\lambda x_i)}, (substitute~ n~ for~ p_i)
+\end{aligned}
+(\#eq:4)
+$$
+
+and 
+
+$$
+\begin{aligned}
+\frac{\partial \mathcal{L}}{\partial\lambda} &= 0 \\
+&\Rightarrow \sum_{i=1}^n p_ix_i - \sum_{i=1}^np_i\mu = 0 \\
+&\Rightarrow \sum_{i=1}^n\bigg[p_i(x_i-\mu) \bigg] = 0 \\
+&\Rightarrow \sum_{i=1}^np_iz_i = 0, \text{ where } z_i = x_i-\mu
+\end{aligned}
+(\#eq:5)
+$$
+
+We now substitute \@ref(eq:5) for $p_i$ in \@ref(eq:4) and write $z_i$ in term of $x_i$
+
+$$
+\begin{aligned}
+\frac{\sum_{i=1}^n z_i\exp(\lambda z_i)}{\sum_{j=1}^n\exp(\lambda z_j)} &= 0 \\
+\Rightarrow \sum_{i=1}^n z_i\exp(\lambda z_i) &= 0
+\end{aligned}
+(\#eq:6)
+$$
+
+It is obvious to see that the left hand side of second equation in \@ref(eq:6) is derivative of $\sum_{i=1}^n\exp(\lambda z_i)$. So, $\lambda$ can be calculated by optimizing the following equation
+
+$$
+\sum_{i=1}^n\exp(\lambda z_i),
+(\#eq:7)
+$$
+where $z_i = x_i - \mu$. We see that equation \@ref(eq:7) is similar to the equation stated in NICE documentation that is 
+
+$$
+\sum_{i,t}\exp(\alpha_1^{\top}\bf{X}_{it}^{EM}),
+$$
+where $\bf{\bar{X}}_{(AC)}^{EM} = 0$
+
+<!-- ################################################################################################### -->
+<!-- :::: {.blackbox data-latex=""} -->
+<!-- ::: {.center data-latex=""} -->
+<!-- **Proof:** -->
+<!-- ::: -->
+<!-- over here -->
+<!-- :::: -->
+
+<!-- # ✨ $\mathcal{References}$ {-} -->

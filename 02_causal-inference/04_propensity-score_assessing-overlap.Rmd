@@ -1,0 +1,274 @@
+---
+title: "&#128205; Đánh Giá Độ Cân Bằng của Các Biến Trước Can Thiệp (Pre-treatments) Từ Hai Nhóm Điều Trị"
+subtitle: "_(Sensitivity Analysis)_"
+author: 👦🏻 _An_^[anh.stats@gmail.com]
+date: "&#x1F4C5; _`r {
+if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
+update=FALSE
+filename= knitr::current_input(dir = FALSE)
+mylist <- readRDS(file ='date_list.rds')
+if(update|!(filename%in%names(mylist))){
+mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
+saveRDS(mylist, file = 'date_list.rds')}
+readRDS(file ='date_list.rds')[[filename]]  }`_"
+abstract: |
+  Trong phần này ta sẽ tìm hiểu những đại lượng cũng như phương pháp được sử dụng để đánh giá phân bố của các biến trước can thiệp sau khi đã matching. 
+header-includes:
+   - \usepackage{amsmath}
+   - \usepackage{titling}
+   - \pretitle{\begin{flushleft}}
+   - \posttitle{\end{flushleft}}
+   - \usepackage{eso-pic,graphicx,transparent}
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("casual.jpg");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+```{r  child="../00_supp/general_rmd.Rmd"}
+```
+
+
+# Giới thiệu
+
+Đánh giá dộ giống giống của các biến confounders được thực hiện trước và ngay sau khi matching. Ta sẽ dựa vào một số đại lượng được giới thiệu ở các phần sau để tìm ra phương pháp matching phù hợp và mang lại hiệu quả tối ưu nhất. 
+
+Các ký hiệu sẽ được sử dụng trong bài:
+
+- $f_c(x)$ và $f_t(x)$: density function (PDF) của nhóm control và nhóm treatment
+- $F_c(x)$ và $F_t(x)$: cumulative function (CDF) của nhóm control và treatment
+- $\mu_c = \E[X_i|T_i=0]$ và $\mu_t = \E[X_i|T_i=1]$: population means của nhóm control và treatment
+- $\sigma_c^2 = \V[X_i|T_i=0]$ và $\sigma_t^2 = \V[X_i|T_i=1]$: population variance của nhóm control và nhóm treatment 
+
+Đại lượng đầu tiên ta xem xét để đánh giá độ khác biệt của confounders trong hai nhóm treatment và control là 
+
+$$
+\Delta = \frac{\mu_t-\mu_c}{\sqrt{(\sigma^2_t+\sigma^2_c)/2}},
+(\#eq:eq1)
+$$
+gọi là _normalized difference_. Trong đó ta biết rằng ước lượng của $\mu_t$ và $\mu_c$ lần lượt là 
+
+$$
+\bar{X}_c = \sum_{i=1}^n X_i\I(T_i=0);~~~\bar{X}_t = \sum_{i=1}^n X_i\I(T_i=1)
+(\#eq:eq2)
+$$
+và ước lượng của $\sigma^2_c$ and $\sigma^2_t$ là 
+
+$$
+s_c^2 = \frac{\sum_{i=1}^n (X_i - \bar{X}_c)^2\I(T_i=0)}{\sum^n_{i=1}\I(T_i=0) -1};~~~ 
+s_t^2 = \frac{\sum_{i=1}^n (X_i - \bar{X}_t)^2\I(T_i=1)}{\sum^n_{i=1}\I(T_i=1)-1}
+(\#eq:eq3)
+$$
+Lần lượt thay thế cái đại lượng trong `r lb(eq,eq1)` bằng các giá trị ước lượng của nó, ta sẽ được ướng lượng $\hat{\Delta}$ của $\Delta$
+
+$$
+\hat{\Delta} = \frac{\bar{X}_t-\bar{X}_c}{\sqrt{(s^2_t+s^2_c)/2}}
+(\#eq:eq4)
+$$
+
+Dễ nhận thấy rằng `r lb(eq,eq4)` tương tự như t-statistic có dạng như bên dưới
+
+$$
+t = \frac{\bar{X}_t-\bar{X}_c}{\sqrt{s^2_t/N_t+s^2_c/N_c}}
+(\#eq:eq5)
+$$
+Tuy nhiên với mục tiêu trong causal inference thì `r lb(eq,eq4)` phù hợp hơn vì 2 lý do:
+
+1. Mục tiêu chúng ta là xem xét sự khác biệt giữa hai nhóm điều trị có quá lớn  để các phương pháp cân bằng được lựa chọn không có hiệu quả. Ta không quan tâm liệu sample size có đủ lớn để phát hiện sự khác biệt. 
+
+2. giả sử mỗi một units được gấp 4 lần thì `r lb(eq,eq4)` sẽ không thay đổi trong khi `r lb(eq5)` sẽ thay đổi. Sự thay đổi này không phải là tác nhân gây ra kết quả mà ta quan tâm. Nói cách khác điểm khác nhau giữa normalized difference và t-statistic chính là t-statistic phụ thuộc vào sample size trong khi normalized difference thì không. 
+
+Ngoài so sánh mean của 2 nhóm, ta cũng có thể so sánh standard deviation. So sánh mean gọi là so sánh về location trong khi so sánh standard variance chính là so sánh scale. Ta có 
+
+$$
+\Gamma = \ln(\sigma_t) - \ln(\sigma_c)
+(\#eq:eq6)
+$$
+giá trị ước lượng là $\hat\Gamma = \ln(s_t) - \ln(s_c)$.
+
+Ngoài ra ta còn có thể so sánh giá trị nằm ở vùng rìa của các confounders. Nghĩa là ta tính xác suất vùng rìa của các biến confounders trong PDF của treatment (control) dựa trên PDF của control (treatment). Ví dụ phân bố của nhóm control có vùng rìa thuộc $X \le F^{-1}_c(\alpha)$ và $X \ge F^{-1}_c(1-\alpha)$ thì  2 đại lượng ta cần xem xét gọi là _coverage frequencies:_
+
+$$
+\begin{split}
+\gamma_t^{\alpha} &= F_t[F_c^{-1}(\alpha/2)] +1 -  F_t[F_c^{-1}(1-\alpha/2)] \\
+\gamma_c^{\alpha} &= F_c[F_t^{-1}(\alpha/2)] +1 -  F_c[F_t^{-1}(1-\alpha/2)]
+\end{split}
+(\#eq:eq7)
+$$
+```{r fig1, fig.cap="_vùng false positive trong 2 nhóm treatment và control của một confounder._", fig.height=2}
+p<-
+ggplot(tibble(x = c(-10,15)), aes(x)) +
+  stat_function(fun = ~dnorm(x=.,sd=3), aes(color = "treatment"))+
+  stat_function(fun = ~dnorm(.,mean = 3, sd = 3), aes(color = "control"))+
+  scale_colour_discrete(name = "Group")+
+  geom_point(data = tibble(x = qnorm(c(0.05,0.975),mean = 3,sd = 3),y = c(0,0)), aes(x,y), color = "red", shape = "|", size = 4)
+
+shade = tibble(x = seq(-10, 15, length.out = 1000))%>%
+  mutate(y1 = dnorm(x,3,3), y2 = dnorm(x,sd =3))
+
+control1 = filter(shade, x <=qnorm(0.05,mean = 3,sd = 3) )
+control2 = filter(shade, x >=qnorm(0.975,mean = 3,sd = 3) )
+
+p + 
+  geom_area(data = control1, aes(x=x,y=y1), fill = "red", alpha = 2/10)+
+  geom_area(data = control2, aes(x=x,y = y1), fill = "red",alpha = 2/10)+
+  geom_area(data = control1, aes(x=x,y = y2), fill = "blue", alpha = 3/10)+
+  geom_area(data = control2, aes(x=x,y = y2), fill = "blue", alpha = 3/10)+
+  theme_void()
+```
+
+Dựa vào hình `r lb(fig1)`, ta thấy rằng phần tô màu đỏ là vùng false positive trong phân bố của một biến confounder thuộc nhóm control. Trong vùng này các quan sát thuộc nhóm control phân bố không dày đặc, nên sẽ khó khăn hơn nếu ta tìm kiếm các điểm trong vùng này để match với quan sát nào đó trong nhóm treatment. Tạm gọi đây là vùng "khó", giờ ta tính xem xác suất vùng khó này theo như phân bố của nhóm treatment có cao không. Nếu cao, nghĩa là số lượng điểm cần được match trong nhóm treatments tập trung vào vùng "khó" của nhóm control, sẽ gây trở ngại hay không thuận lợi trong quá trình matching. Tóm lại, nếu như $\gamma_t^{\alpha}$ càng cao thì quá trình tìm điểm để match càng khó. 
+
+Bốn đại lượng vừa được giới thiệu ở trên sẽ cho ta một đánh giá tổng quan khá hiệu quả về sự khác biệt của các biến confounders trong hai nhóm điều trị. Ngoài ra histograms cũng nên được sử dụng để xem xét về độ che phủ từ 2 nhóm điều trị cũng được, tham khảo tại @vij2015.
+
+# Đánh giá sự khác biệt thông qua phân bố của PS
+
+Ở một khía cạnh khác PS có thể xem là là phương pháp để giảmchiều không gian của data, vì thế mọi sự khác biệt liên quan tới kỳ vọng, phương sai của các covariates giữa hai nhóm điều trị đều sẽ dẫn đến sự khác biệt trong phân bố của PS. Do đó, hoàn toàn hợp lý để đánh giá độ khác biệt của hai nhóm điều trị thông qua phân bố của PS. Đặc biệt sử dụng PS để đánh giá sẽ dễ dàng hơn vì ta chỉ dựa trên 1 chiều không gian đó là vector của PS trong khi đánh giá từng covariates sẽ trở nên khá phức tạp nếu data có chiều không gian lớn. 
+
+Giả sử ta kí hiệu PS là $e(x)$ và $\lambda(e)$ chính là một hàm số linearized của PS được định nghĩa như sau 
+
+$$
+\lambda(x) = \ln\frac{e(x)}{1-e(x)}.
+(\#eq:eq7)
+$$
+
+Ta hãy xem $\lambda(x)$ như một covariate và tính normalized difference bằng `r lb(eq4)`. Để thấy rằng sự khác biệt trong hai phân bố của hai nhóm điều trị sẽ dẫn đến sự khác biệt trong PS của hai nhóm điều trị, ta sẽ xem xét định lí sau:
+
+```{theorem name = "PS và covariate balance", label = "theo1"}
+ Giả sử $f_c(x)$ và $f_t(x)$ lần lượt là phân bố của hai nhóm điều trị, $p$ là kỳ vọng của treatment $T$, $p = \E[T_i]$. Tiếp tục giả sử hai quy ước _unconfoundedness_ và _individualistic_ đúng thì ta có 
+
+$$
+\V[e(X_i)] = \E\Big[\Big(\frac{f_t(X_i) - f_c(X_i)}{f_t(X_i)p + f_c(X_i)(1-p)}\Big)^2\Big]p^2(1-p)^2,
+(\#eq:eq8)
+$$
+và
+$$
+\E[e(X_i)|T_i=1] - \E[e(X_i)|T_i=0] = \frac{\V[e(X_i)]}{p(1-p)}
+(\#eq:eq9)
+$$
+```
+
+:::: {.blackbox .mathematics}
+:::{.center}
+__proof.__ *(yes, you can ignore!!!)*
+:::
+1. `r lb(eq8)`. Dựa vào công thức Bayes ta có $e(x) = \P[T=1|X] = \frac{\P(X|T=1)\P(T=1)}{\P(X|T=1)\P(T=1) + \P(X|T=0)\P(T=0)}$, trong đó $\P(X|T=1)$ và $\P(X|T=0)$ chính là $f_t(x)$ và $f_c(x)$, ngoài ra vì $T \sim Bin(1,p)$ nên $\P(T=1) = p$. Như vậy, 
+
+$$
+\begin{split}
+e(x)  - p &= \frac{f_t(x)p}{f_t(x)p + f_c(x)(1-p)} - p \\
+&= \frac{f_t(x) - f_c(x)}{f_t(x)p + f_c(x)(1-p)}p(1-p)
+\end{split}
+$$
+vì thế 
+$$
+\begin{split}
+\V[e(x)] &= \E\big[e(x) - \E[e(x)]\big]^2 \\
+&= \E\big[e(x) - p\big]^2 \\
+&= \E\Big[\Big(\frac{f_t(X_i) - f_c(X_i)}{f_t(X_i)p + f_c(X_i)(1-p)}\Big)^2\Big]p^2(1-p)^2
+\end{split}
+$$
+
+2. `r lb(eq9)`. Ta có 
+$$
+\begin{split}
+f_t(x) = \P[e(x)|T=1] &= \frac{\P(T=1|e(x))\P(e(x))}{\P(T)} \\
+&=\frac{ef(x)}{p}, ~~~ \textit{ where } f(x) \textit{ is density function of }e(x) \\
+\end{split}
+(\#eq:eq10)
+$$
+và 
+$$
+f_c(x) = \frac{(1-e)f(x)}{(1-p)}
+(\#eq:eq11)
+$$
+
+Ta cũng có
+$$
+\begin{split}
+\E[e(x)|T=1] &= \int ef_t(e)de = \int \frac{e^2f(x)}{p}dx = \frac{\E[e(x)^2]}{p} = \frac{\V(e(x))+p^2}{p} \\
+&=\frac{\V[e(x)]}{p} + p,
+\end{split}
+$$
+tương tự ta cũng sẽ có 
+$$
+\E[e(x)|T=0] = p - \frac{\V[e(x)]}{1-p}
+$$
+Vì thế ta có 
+$$
+\E[e(x)|T=1]  - \E[e(x)|T=0] = \frac{\V[e(x)]}{p(1-p)}
+$$
+`r rs("\\square")`
+::::
+
+Dựa vào `r lb(eq8)` và `r lb(eq9)` ta có 
+$$
+\E[e(X_i)|T_i=1] - \E[e(X_i)|T_i=0] =\E\Big[\Big(\frac{f_t(X_i) - f_c(X_i)}{f_t(X_i)p + f_c(X_i)(1-p)}\Big)^2\Big]p(1-p),
+$$
+vì thế nếu khác biệt của phân bố của một covariate nào đó trong hai nhóm điều trị càng lớn, sẽ dẫn đến khác biệt của kỳ vọng của PS trong hai nhóm điều trị càng lớn. Ngoài ra ta cũng thấy rằng kỳ vọng của PS trong nhóm treatment luôn lớn hơn nhóm control. 
+
+# Đánh giá khả năng matching 
+
+Ta sẽ dựa vào PS để tính hai đại lượng nhằm đánh giá khả năng matching của các units từ hai nhóm điều trị. Cho mỗi một đơn vị $i$ thuộc nhóm điều trị $T=t$ ta sẽ tìm xem có bao nhiêu units  $j$ thuộc nhóm đối xứng $T= 1-t$ sao cho 
+
+$$
+l(X_i) - l(X_j) \le \kappa,
+(\#eq:eq12)
+$$
+trong đó giá trị của $\kappa$ thường được chọn là $0.1$, cho biết rằng độ khác biệt trong PS cao nhất là $10%$. Như vậy nếu như càng nhiều unit $j$ thỏa mãn `r lb(eq12)` thì khả năng matching càng cao. 
+
+Ta lấy $\xi_i$ là một hàm chỉ thị  nếu như có ít nhất một đơn vị $j$ thỏa mãn `r lb(eq12)` cho đơn vị $i$. Ta có
+
+$$
+\xi_i = \cases{1,~~~~~\textit{if}~~~\sum_{j:T_j \ne T_i}\I[l(X_j) - l(X_i) \le\kappa] >0 \\
+0,~~~~~\textit{otherwise}
+}
+$$
+
+Cuối cùng ta tính trung bình của 2 nhóm điều trị 
+
+$$
+\bar{\xi}^{(c)} = \frac{\sum_{i:T_i=0}\xi_i}{N_c}; ~~~\textit{ và }~~ \bar{\xi}^{(t)} = \frac{\sum_{i:T_i=1}\xi_i}{N_t}
+$$
+
+<!-- ################################################################################################### -->
+<!-- :::: {.blackbox data-latex=""} -->
+<!-- ::: {.center data-latex=""} -->
+<!-- **Proof:** -->
+<!-- ::: -->
+<!-- over here -->
+<!-- :::: -->
+# 📝 __*References*__ {-}
+

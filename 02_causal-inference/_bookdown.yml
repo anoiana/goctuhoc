@@ -1,0 +1,13 @@
+language:
+  label:
+    fig: 'Hình '
+    tab: 'Bảng '
+    eq: 'Phương trình '
+    thm: 'Định lí '
+    lem: 'Bổ đề '
+    cor: 'Hệ quả '
+    def: 'Định nghĩa '
+    exm: 'Ví dụ '
+    exr: 'Bài tập '
+    proof: 'Chứng minh. '
+    solution: 'Bài giải. '

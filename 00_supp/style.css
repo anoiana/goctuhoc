@@ -1,0 +1,230 @@
+/*------------- Whole Document---------------- */
+
+body {
+    font-family: 'Times New Roman';
+    font-size: 19px;
+    color: black;
+}
+
+/*.math {
+  max-width: 800px;
+  font-size: 17.5px;
+}*/
+
+/*----------------ADDING WHITE SPACE-------------*/
+
+.title {
+    line-height: 1.2 ;
+    margin-bottom: 0.5em;
+}
+
+/*----------------- define tag ---------------------*/
+
+#myadd {
+        color:grey;
+        font-size: 17px;
+        margin-left: 4em;
+        margin-top: 0em;
+}
+
+/*----------------- links ---------------------*/
+
+a {
+  color: purple;
+}
+
+a:hover {
+    color: #CD5C5C; /* darker color when hovering */
+  }
+
+
+
+.list-group-item {
+    color: purple; /* color of content*/
+    font-size: 18px;
+}
+
+
+.list-group-item.active {
+    color: white;
+    background-color: #CD5C5C;
+    border: none;
+}
+
+.list-group-item:hover,
+.list-group-item.active:hover {
+    color: #CD5C5C;
+    background-color: #f7f7f7;
+}
+
+/*----------LOGO above TOC---------*/
+/*
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("../00_supp/nhoc.gif");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+*/
+
+/*----------second logo---------*/
+#topright {
+   content: "";
+   height: 90px;
+   width: 90px;
+   float: right;
+   background-image: url("../00_supp/nhoc.gif");
+   background-size: contain;
+   background-position: center center;
+   background-repeat: repeat;
+ }
+
+
+/*----------third logo---------*/
+
+/*
+.upper-right-logo {
+  margin-top: 20px;
+  background-image: url("../00_supp/eversana4.png");
+  height: 50px;
+  width: 800px;
+  background-size: contain;
+  background-position: center;
+  background-repeat: no-repeat;
+  background-color: #000080;
+}
+*/
+
+/*------------Table of Contents (TOC)----------- */
+/* Makes TOC sticky (needed if you used a hero image) */
+
+.row-fluid{
+  display: flex; /* Necessary for sticky TOC*/
+}
+
+.tocify {
+  border: none;   /*Removes border */
+  border-radius: 0px; /* Gets rid of rounded corners on TOC */
+  font-size: 16px;
+  width: 100% !important;
+  background: #f9f9f9 none repeat scroll 0 0;
+  top: 90px;
+  padding: 5px;
+  position: -webkit-sticky;
+  /*position: sticky;*/
+}
+
+/* NO TOC on mobile */
+
+@media screen and (max-width: 767px){
+
+  .col-xs-12.col-sm-4.col-md-3 {
+    display: none;
+  }
+
+  .top-text {
+    font-size: 25px;
+  }
+
+  .bottom-text {
+    font-size: 40px;
+  }
+}
+
+/* Remove excessive white space at the end of page */
+
+.tocify-extend-page {
+  height: 100px !important;
+
+}
+
+
+caption {
+      color: black ;
+      font-style: 'Times New Roman' ;
+      font-size: 18px;
+    }
+
+
+.scroll-200 {
+  max-height: 200px;
+  overflow-y: auto;
+  background-color: inherit;
+}
+
+.scroll-it {
+  max-height: 500px;
+  overflow-y: auto;
+  background-color: inherit;
+}
+
+.scroll-w {
+  max-width: 800px;
+  overflow-y: auto;
+  background-color: inherit;
+}
+/*====================================================================================================*/
+
+/* add customized chunk*/
+
+.blackbox {
+  padding: 0.2em 0em 0.2em 0.2em;
+  border: 2px solid #A8A8A8;
+  border-radius: 10px;
+  background: #EBEBEB 5px 0.3em/2.5em no-repeat;
+  margin-bottom: 10px;
+}
+
+.center {
+  text-align: left;
+  padding: 0em 0em 0.3em 3em;
+  font-style: italic;
+}
+
+.mathematics {
+  background-image: url("MATH.png");
+}
+
+.important {
+  background-image: url("important.png");
+  background-size: 30px;
+}
+
+.brainstorm {
+  background-image: url("brainstorm.png");
+}
+
+.notes {
+  background-image: url("shark.png");
+}
+
+.right {
+  text-align: right;
+}
+
+
+/*-----------------color---------------------------*/
+
+.col-purple {
+  color: purple;
+}
+
+.col-navy {
+  color: navy;
+}
+
+.col-darkred {
+  color: darkred;
+}
+/* Change background color of buttons on hover */
+/*
+.nav-pills > li.active > a,
+.nav-pills > li.active > a:focus {
+    background: #CD5C5C;
+}
+*/
+

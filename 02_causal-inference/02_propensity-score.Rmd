@@ -1,0 +1,501 @@
+---
+title: "&#128205;Propensity Score I"
+subtitle: "&#128205;Tổng Quan về Propensity Score và Phương Pháp Weighting"
+author: 👦 $\mathcal{An}$
+date: "&#x1F4C5; _`r {
+if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
+update=FALSE
+filename=knitr::current_input(dir = FALSE)
+mylist <- readRDS(file ='date_list.rds')
+if(update|!(filename%in%names(mylist))){
+mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
+saveRDS(mylist, file = 'date_list.rds')}
+readRDS(file ='date_list.rds')[[filename]]  }`_"
+abstract: |
+  Propensity score là phương pháp được sử dụng nhiều trong các nghiên cứu đánh giá ảnh hưởng của sản phầm (hay phương pháp điều trị hoặc can thiệp trong clinical trials). Nó cho phép ta điều chỉnh độ nhiễu gây ra bởi các biến điều kiện trước can thiệp khi ta đánh giá hiệu quả của các can thiệp. Propensity score được giải thích là xác suất mà một bệnh nhân được xếp vào nhóm treatment (nhóm còn lại là control) dưới một điều kiện nào đó (tuổi, giới tính, chiều cao,...). Những điều kiện này gọi là điều kiện trước can thiệp (pretreatments). Dưới một tập propensity score cho từng bệnh nhân, ảnh hưởng của các can thiệp lên bệnh nhân sẽ được so sánh một cách chính xác hơn. Trong phần này ta sẽ lần lượt làm quen với các phương pháp tìm propensity score cho một observational data. 
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+        after_body: "../00_supp/mycomment.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+---
+
+
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("casual.jpg");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+```{r child="../00_supp/general_rmd.Rmd"}
+```
+
+# Giới thiệu  
+
+Nói đến suy luận nhân quả, hiện tại có ba trường phái là 
+
+1. Trường phái của Rubin, sử dụng lý thuyết counterfactual.
+2. Trường phái Pearl, phát triển từ lý thuyết của graphical models.
+3. Trường phái của Dawid, dựa trên thuyết quyết định (decision theory). 
+
+Trong nội dung bài này ta sẽ tiếp cận vấn đề theo trường phái của Rubin.
+
+Trước tiên ta hãy nhắc lại các ký hiệu sẽ được sử dụng trong bài như sau 
+
+- potential outcomes: $Y_i(0)$ và $Y_i(1)$ chính là kết quả của bệnh nhân $i$ lần lượt thuộc nhóm control và treatment.
+- observed outcomes: $Y_{i|1}$ và $Y_{i|0}$ hoặc $Y_i|T=1$ và $Y_i|T=0$ là kết quả quan sát được của bệnh nhân $i$ thuộc nhóm treatment HOẶC control. Lưu ý với mỗi một bệnh nhân ta chỉ có thể quan sát được một trong hai giá trị. 
+- nhóm điều trị: $T=0$ và $T=1$ đại diện cho hai nhóm điều trị control và treatment
+- pre-treatments, confounders, baseline characteristics: được ký hiệu $\bf{X}_i$, $\bf{X}$ được in đậm đại diện cho một vector thay vì một scalar, vì mỗi một bệnh nhân sẽ có nhiều biến confounders như tuổi, giới tính, dân tộc,...
+
+Như đã giải thích ở phần trước, ảnh hưởng của các can thiệp thường bị nhiễu bởi các điều kiện trước can thiệp, nhiễu là nguyên nhân chính ngăn cản sự đánh giá về hiệu quả của can thiệp đó. Nói cách khác nếu ta nhìn vào 2 nhóm treatment và control thì sự phân bố của các confounders như tuổi, giới tính, chiều cao, cân nặng của các bệnh nhân sẽ không đều nhau. Điều này xảy ra ở tất cả các nghiên cứu sử dụng observational data (khác với randomized controlled trial), bởi vì đa số ta dựa trên các điều kiện như tuổi, giới tính, chiều cao... để xếp bệnh nhân vào một trong hai nhóm treatment hay control. Giả sử ta muốn đánh giá hiệu quả điều trị của một loại thuốc mới, ta sẽ tiến hành thí nghiệm bằng cách cho một số người sử dụng loại thuốc mới trong khi những người còn lại sẽ được sử dụng giả dược (placebo). Trong điều kiện lý tưởng, không nhiễu, tức là 2 nhóm điều trị này có các điều kiện trước khi tham gia vào nghiên cứu là tương tự nhau, ta có thể dễ dàng so sánh kết quả của 2 nhóm bệnh nhân này (xảy ra khi có sự hiện diện của randomization). Tuy nhiên, kết luận sẽ bị lệch nếu như hai nhóm bệnh nhân này có sự phân bố của các confouders không đồng đều. Nói cách khác là điều kiện ban đầu của 2 nhóm này khác nhau. 
+Ví dụ dễ thấy là trong số những bệnh nhân thuộc nhóm treatment có tỉ lệ trên 50 tuổi là 80% trong khi những người thuộc nhóm còn lại thì có đến 80% số bệnh nhân dưới 30 tuổi. Như vậy nếu như kết quả phân tích cuối cùng cho thấy treatment không hiệu quả khi so sánh với control. Vậy ta phải đặc câu hỏi là _"liệu nhóm bệnh nhân thuộc nhóm control đạt kết quả tốt hơn bệnh nhân thuộc nhóm treatment là do treatment không hiệu quả bằng control hay do khả năng phục hồi của những bệnh nhân trên 50 thấp hơn những bệnh nhân dưới 30 tuổi?"_ hoàn toàn có khả năng là treatment thật sự hiệu quả nhưng vì độ tuổi đã ảnh hưởng và làm lệch đi kết quả đúng. Như vậy solution cho vấn đề này là ta cần phải cân bằng lại tỉ lệ tuổi của 2 nhóm điều trị. Nghĩa là tỉ lệ số tuổi của bệnh nhân trên 50 và dưới 30 của 2 nhóm phải xấp xỉ nhau. 
+
+Nếu ta giả sử rằng mỗi một bệnh nhân đều có 2 kết quả song song tương ứng với từng can thiệp. trong điều kiện này thì các biến trước điều trị không ảnh hưởng vì cả 2 nhóm treatment và control đều có các điều kiện ban đầu như nhau (mỗi bệnh nhân đều cho 2 kết quả tương ứng với 2 phương pháp điều trị). Tuy nhiên, trong thực tế, điều này hoàn toàn khôn thể xảy ra bởi vì mỗi bệnh nhân chỉ được dùng đúng 1 loại thuốc và cho duy nhất một kết quả tương ứng với loại thuốc đó. 
+
+Ta lấy $Y_i(T)$ là ký hiệu của kết quả điều trị sau khi sử dụng phương pháp điều trị $T$, trong đó $T = 1$ là treatment và $T = 0$ là control. Trong thực tế ta chỉ có thể quan sát được một trong hai giá trị $Y(1)$ HOẶC là $Y(0)$, tùy vào bệnh nhân đó thuộc nhóm nào. Như vậy, so sánh hiệu quả của hai loại can thiệp này sẽ không thực hiện được bằng các phương pháp thống kê thông thường. 
+
+Nhắc lại rằng đại lượng để đánh giá hiệu quả là $\E[Y(1) - Y(0)]$, chính là expectation (kỳ vọng) của  hai potential outcomes tương ứng hai nhóm điều trị. Nếu như các bệnh nhân tham gia vào nghiên cứu được _**ngẫu nhiên**_ phân vào một trong hai nhóm điều trị, thì ta có
+
+$$
+\E[Y_i(t)] = \E[Y_i|T=t],~~~~1\le i\le n.
+(\#eq:1)
+$$
+
+Để chứng minh `r lb(eq,'1')`, ta hãy xem yếu tố randomization được thực hiện thông qua chọn lựa bệnh nhân vào một trong hai nhóm điều trị bằng cách tung một đồng xu. Nếu như đồng xu cho ra mặt hình thì bệnh nhân vào nhóm treatment $(T=1)$, ngược lại sẽ vào nhóm control $(T=0)$ _(scenario 1)_. Câu hỏi đặc ra là nếu ta làm ngược lại, nghĩa là nếu đồng xu mặt hình ta sẽ cho bệnh nhân vào nhóm control $(T=0)$ ngược lại là nhóm treatment $(T=1)$ _(scenario 2)_, thì kết quả có thay đổi hay không?! câu trả lời là không, bởi vì ta luôn có 
+
+$$
+\cases{
+\E[Y(1)|T=1] = \E[Y(1)|T=0] = \E[Y(1)],  \\
+\E[Y(0)|T=1] = \E[Y(0)|T=0] = \E[Y(0)].}
+(\#eq:eq1)
+$$
+có nghĩa là $Y(1),Y(0)$ độc lập với $T$, và `r lb(eq1)` được gọi là _exchangeability_. 
+
+
+:::: {.blackbox .brainstorm}
+::: {.center }
+`r colorize('_Ta có thể nghĩ rằng potential outcome Y(1) và Y(0) đã có từ trước khi can thiệp, quá trình can thiệp chỉ để xác định potential outcome nào của mỗi bệnh nhân sẽ trở thành observed outcome. Vì quá trình can thiệp diễn ra ngẫu nhiên mà không phụ thuộc lên bất kỳ một confounders hay potential outcomes nào, nên $T \\indep Y(0), Y(1))$_.',color = "grey")`
+:::
+Tuy nhiên, để giải thích chính xác về ý nghĩa của _randomization (quá trình ngẫu nhiên)_, thì ta sẽ mượn ví dụ của @ros2010 như sau
+
+ví dụ ta có 5 bệnh nhân, mỗi bệnh nhân  sẽ có 2 potential outcomes, ký hiệu là $$\{Y_i(t):t=0 \lor t=1, i=1,\dots,n\},$$ tương ứng với 2 nhóm treatments là active và control. Như vậy xếp _ngẫu nhiên_ bệnh nhân vào 1 trong 2 nhóm điều trị tức là $T  = \{t_i:i = 1,\dots,5\}$ sẽ được chọn ngẫu nhiên, mỗi lần chọn với xác suất là $\frac{1}{2^5} = 0.03125$. Xác suất được tính bằng cách sau: có tất cả $5$ $T$'s mỗi $T$ có 2 giá trị để chọn là $0$ và $1$, nên có tất cả là $2^5 = 32$ cách. Lưu ý khi chọn một giá trị cho $T$ nghĩa là ta sẽ chọn ngẫu nhiên cùng lúc $5$ $t$'s. Ví dụ ta có thể ném cùng lúc 5 đồng xu để tìm giá trị $T$. Nói một cách đơn giản thì ta dùng đồng xu để thiết lập phân bố của biến ngẫu nhiên $T$. Thật ra điều này chưa thật sự đúng. quá trình ngẫu nhiên phải được xem xét từ khía cạnh độc lập của các thông tin liên quan. Nghĩa là thông tin $Y(T)$ hay $X$ mang lại vô hiệu để dự đoán $T$, hay ngược lại. Nghĩa là đồng xu được sử dụng không thể nhận diện được các thông tin khác, ngay cả khi các đặc tính của từng bệnh nhân như giới tính, tuổi tác, chiều cao... có thể xác định, thậm chí ta biết được kết quả của từng bệnh nhân, thì đồng xu vẫn không thể sử dụng nguồn thông tin đó, mà nó chỉ làm một việc đơn giản là "vô tư" xếp 5 bệnh nhân vào một trong hai nhóm điều trị. Vì thế ta có thể viết là 
+
+$$
+\P[T|Y(0),Y(1)] = \frac{1}{2^n}, ~~~\color{grey}{\text{(nếu đồng xu đồng chất)}} 
+$$
+với $n$ là số bệnh nhân tham gia nghiên cứu. Nghĩa là dưới điều kiện thông tin được cho trước, $Y(0)$ và $Y(1)$, thì tất cả $2^n$ lựa chọn sẽ có xác suất bằng nhau, tức là ta không sử dụng thông tin từ $\big[Y(0),Y(1)\big]$ hay $X$ để dự đoán $T$. Chúng ta có thể viết công thức trên ở dạng tổng quát hơn khi đồng xu không đồng chất, nghĩa là $p\ne 1/2$. Ta có 
+
+$$
+\P[T|Y(0),Y(1)] = p^{n_t}(1-p)^{n_c}
+(\#eq:eq1001)
+$$
+trong đó $n_t+n_c=n$. `r lb(eq1001)` được gọi là _Bernoulli trials_.
+
+Nhìn vào công thức trên ta thấy rằng xác suất của $T$ chỉ phụ thuộc vào số lượng bệnh nhân trong 2 nhóm điều trị đã được xác định trước đó và hoàn toàn độc lập với $Y(t)$ với $t \in\{0,1\}$. Ta nói rằng $T \indep Y(0),Y(1)$. Bây giờ ta hãy hình dung có 2 bệnh nhân trong đó bệnh nhân số 1 thuộc không gian $head~(H)$, kết quả được ký hiệu là $Y_H$ bệnh nhân số 2 thuộc không gian $tail~(T)$, ký hiệu là $Y_T$, cả hai không gian này đều là không gian của interventional tức là không gian được can thiệp nên mỗi không gian chỉ chứa duy nhất một thuộc tính $T$ hay thuộc tính $H$. Như vậy đặc tính exchangeability sẽ bảo đảm rằng cả 2 bệnh nhân thuộc hai không gian này đều có kỳ vọng $\E[Y|T=t]$ như nhau nghĩa là 
+$$
+\cases{
+\E[Y_H|T=1] = \E[Y_T|T=1], \\ \E[Y_H|T=0] = \E[Y_T|T=0].}
+$$
+Quay lại ví dụ về đồng xu, ta có thể nói rằng 
+
+:::{.col-darkred}
+> __Đặc tính exchangeability đã bảo đảm rằng dù đồng xu tương ứng với một bệnh nhân nào đó là _H_ hay _T_ thì kết quả kỳ vọng của bện nhân đó `r colorize('_nếu được điều trị (nếu không được điều trị)_', color = 'darkred')` sẽ không đổi, bằng ký hiệu của xác suất ta có thể trình bày như trong `r lb(eq1)`.__ 
+:::
+
+Điều này cũng dễ hiểu vì nếu như một bệnh nhân nào đó mà có biểu hiện không đồng nhất với các bệnh nhân khác thì ta có thể suy luận rằng đã có một đặc tính nào đó ảnh hường lên kết quả mà ta đã bỏ qua. 
+
+Xét một ví dụ khác như sau, $A$ là một phương pháp điều trị có hiệu quả với bệnh $D$, nghĩa là $Y(A) =1$ và $Y(A^C) =0$ như vậy kết quả ta mong muốn đó là nếu bệnh nhân số 1 thuộc nhóm điều trị thì bệnh nhân 1 sẽ cho kết quả phục hồi $Y_1(A)=1$, còn bệnh nhân số 2 thuộc nhóm không điều trị sẽ cho kết quả không phục hồi $Y_2(A^C)=0$, ta có 
+$$
+Y_1(A) - Y_2(A^C) = 1.
+$$
+Ở trường hợp ngược lại, nếu bệnh nhân số 1 thuộc nhóm không điều trị thì kết quả cũng phải là không phục hồi, $Y_1(A^C)=0$, và bệnh nhân số 2 lần này thuộc nhóm điều trị phải cho kết quả phục hồi, $Y_2(A)=1$, ta có 
+$$
+Y_2(A) - Y_1(A^C) =1.
+$$
+Nếu ta thu được một trong hai kết quả trên thì ta kết luận thuốc $A$ có hiệu quả với bệnh $D$, giống như những gì ta mong đợi trước đó. Nhưng nếu như bệnh nhân số 1 trong trường hợp thứ 2 cũng cho kết quả phục hồi tức là $Y_1(A^C) =1$, thì 
+$$
+Y_2(A) - Y_1(A^C) =0,
+$$
+Kết quả này sẽ đưa đến kết luận rằng thuốc $A$ không có hiệu quả với bệnh $D$, và kết luận này ngược lại với kết quả đúng ban đầu. 
+::::
+
+Như vậy dựa vào `r lb(eq1)` ta có thể chứng minh được `r lb(eq,'1')` như sau 
+
+$$
+\begin{split}
+\E[Y_i(t)] &= \E[Y_i(t)|T=t] \\
+&= \E[Y_i|T=t], ~~~ \small\text{(đặc tính consistency)}
+\end{split}
+$$ 
+_(tham khảo về consistency [tại đây](https://ngoitruocgioxuan.github.io/goctuhoc/02_causal-inference/01_potential-outcomes.html))._ 
+`r rs("\\square")`
+
+Như vậy $\E[Y|T=t]$ cũng sẽ không đổi khi ta tráo đổi hướng điều trị của bệnh nhân dựa trên hai mặt đồng xu. Nói một cách khác, dưới điều kiện của randomization thì _causation_ và _association_ là đồng nhất, nghĩa là  
+
+$$
+\P[Y(t)] = \P[Y|T=t].
+(\#eq:eq2)
+$$
+
+Để chứng minh `r lb(eq2)` trước tiên ta phải xem xét khái niệm gọi là _covariate balance_, nghĩa là phân bố của các biến trước khi can thiệp của hai nhóm điều trị là giống nhau. Nghĩa là 
+
+$$
+\P[X|T=1] \stackrel{d}{=} \P[X|T=0],
+(\#eq:eq3)
+$$
+lý do là vì khi các bệnh nhân được lựa chọn ngẫu nhiên vào một trong hai nhóm điều trị thì ta không xem xét tất cả thông tin của các covariates $X$ ngoại trừ yếu tố can thiệp $T$. Ví dụ ta dùng một đồng xu để quyết định nhóm điều trị cho từng bệnh nhân thì yếu tố duy nhất quyết định một bệnh nhân $i$ nào đó được xếp vào nhóm treatment hay control chính là đồng xu đó. Dựa vào `r lb(eq3)` ta có thể chứng minh được `r lb(eq2)` như sau 
+
+$$
+\begin{split}
+\P[Y(t)] &= \P[Y(t)|T], ~~~ \textit{(Y(1) and Y(0) are independent of T)} \\
+&= \sum_x\P[Y(t)|T,X]\P(X) \\
+&= \sum_x\frac{\P[Y|T,X]\P(T|X)\P(x)}{\P[T|X]} ~~~\textit{(consistency)}\\
+&=\sum_x \frac{\P(Y,T,X)}{\P(T)} ~~~ {(X \indep T \textit{ mentioned above})} \\
+&= \sum_x\frac{\P(Y,X|T)\P(T)}{\P(T)} \\
+&= \P(Y|T)
+\end{split}
+$$
+`r rs("\\square")`
+
+Như vậy, dưới điều kiện randomization (ngẫu nhiên), $\E[Y_i(t)]$ có thể được xác định bằng các đại lượng có thể quan sát của mỗi bệnh nhân và đồng thời khẳng định tính đồng nhất của causation và assiciation, đây chính là điều kiện mấu chốt làm cho một nghiên cứu dựa trên randomized controlled trials (RCTs) trở thành chọn lựa tiêu chuẩn để tiến hành thí nghiệm. 
+
+Tuy nhiên, hiện nay điều kiện tiêu chuẩn này trở nên cực kỳ khan hiếm trong những nghiên cứu về thuốc, bởi vì để có được một data đạt tiêu chuẩn như thế, đòi hỏi rất nhiều thời gian và tài chính cũng như các vấn đề về đạo đức. Trong trường hợp không đạt được điều kiện tiêu chuẩn như trên, ta cần phải xem xét tới các vấn để gây nhiễu, và một trong những phương pháp đó là sử dụng propensity scores, một trong những công cụ được dùng phổ biến để mục tiêu này. 
+
+# Định nghĩa
+
+Sử dụng cùng một ký hiệu như bài trước, ta có $X$ đại diện cho điều kiện của bệnh nhân trước khi can thiệp (confounders), ví dụ như tuổi, giới tính, dân tộc v.v... $T$ là phương pháp điều trị (treatments), thông thường thì chúng ta chỉ xem xét $T = \{0,1\}$. Tiếp theo $Y$ đại diện cho kết quả của bệnh nhân sau khi đã can thiệp. Chúng ta cũng cần nhắc lại sự khác nhau giữa $Y|T=t$ và $Y(t)$, trong khi cái đầu tiên chính là cái ta quan sát được, tức là thực chứng (factual) thì cái sau chính là potential outcomes, và ta chỉ có thể quan sát được hoặc là $Y(0)$ hoặc là $Y(1)$. cái quan sát được là factual thì cái không quan sát được chính là counterfactual. 
+
+Dựa trên quy ước _unconfoundedness_ ta có 
+
+$$
+(Y_i(1),Y_i(0)) \indep T_i|\bf{X}_i
+(\#eq:2)
+$$
+lưu ý $\bf{X}_i = (X_{i1}, X_{i2},\dots,X_{ip})^{\top}$ đại diện cho các điều kiện của bệnh nhân $i$, ví dụ như $\bf{X}_i = (\text{tuổi, giới tính,dân tộc})^{\top}$, nếu $p=3$. Như vậy ta có 
+
+$$
+\begin{split}
+\E[Y_i(1)-Y_i(0)|\bf{X}_i] &= \E[Y_i(1)-Y_i(0)|T_i,\bf{X}_i] \\
+&= \E[Y_i|T_i=1,\bf{X}_i] - \E[Y_i|T_i=0,\bf{X}_i] 
+\end{split}
+(\#eq:3)
+$$
+
+Như vậy mặc dù việc chọn treatment $T$ cho từng bệnh nhân trong nghiên cứu xảy ra không ngẫu nhiên nhưng trong cùng một nhóm các bệnh nhân có điều kiện giống nhau (được phân biệt bằng các confounders $\bf{X}$) thì treatment lại được chọn ngẫu nhiên. Vì thế nếu như sample size (kích cỡ mẫu) của mỗi nhóm đủ lớn thì ta hoàn toàn có thể xác định $\E[Y_i(1)]$ và $\E[Y_i(0)]$ bằng sample mean (trung bình mẫu) trong từng nhóm. Như thế, hiệu quả tổng hợp của treatments được tính bằng weighted mean (bình quân gia quyền) của những giá trị means trong từng nhóm. kết quả này sẽ không chính xác nếu như quy ước _positivity_ không thỏa, nghĩa là nếu có bất kỳ 1 nhóm nào đó chỉ được điều trị bằng một phương pháp duy nhất. Cũng như đã đề cập, nguy cơ quy ước này không thỏa sẽ càng cao nếu như sample size càng nhỏ. 
+
+
+:::: {.blackbox .important data-latex=""}
+::: {.center data-latex=""}
+**Định nghĩa**
+:::
+
+__*Propensity score (PS)*__ được định nghĩa như sau
+
+$$
+e(\bf{X}_i) = \P(T_i=1|\bf{X}_i)
+(\#eq:4)
+$$
+xác suất mà một bệnh nhân được xếp vào nhóm treatment biết rằng bệnh nhân này có điều kiện trước can thiệp là $\bf{X}$. 
+::::
+
+Dựa trên quy ước _confoundedness_ thì $\E[Y_i|T_i = 1,\bf{X}_i] = \E[Y_i|\bf{X}_i]$, và ta cũng có thể dựa trên $e(\bf{X}_i)$ để kết luận tương tự như sau
+
+:::: {.blackbox .important data-latex=""}
+::: {.center data-latex=""}
+ 
+:::
+$$
+\E[Y_i|T_i = 1,e(\bf{X}_i)] = \E[Y_i|e(\bf{X}_i)]
+(\#eq:5)
+$$
+::::
+
+Thật ra \@ref(eq:5) là hệ quả nếu như $T_i \indep Y_i(0),Y_i(1)|e(\bf{X}_i)$ đúng, và để chứng minh sự độc lập giữa treatment assignment và potential outcomes dưới điều kiện của propensity score cần chứng minh được rằng $\P[T_i =1|Y_i(0),Y_i(1),e(\bf{X}_i)] = \P[T_i =1|e(\bf{X}_i)]$. Ta sẽ chứng minh qua 2 bước
+
+:::: {.blackbox .mathematics data-latex=""}
+::: {.center data-latex=""}
+ mathy!!! (có thể bỏ qua)
+:::
+**Chứng minh** 
+$$
+\P[T_i =1|Y_i(0),Y_i(1),e(\bf{X}_i)] = \P[T_i =1|e(\bf{X}_i)]
+(\#eq:6)
+$$
+
+Đầu tiên ta cần chứng minh rằng 
+$$
+T_i \indep \bf{X}_i|e(\bf{X}_i)
+$$
+nghĩa là ta sẽ chứng minh $\P[T_i=1|\bf{X}_i,e(\bf{X}_i)] = \P[T_i=1|e(\bf{X}_i)]$. Ta có 
+
+$$
+VT = \P[T_i=1|\bf{X}_i,e(\bf{X}_i)] = \P[T_i=1|\bf{X}_i] = e(\bf{X}_i)
+$$
+dấu bằng đầu tiên xảy ra vì $e(\bf{X}_i)$ là một hàm số của $\bf{X}_i$, dấu bằng thứ hai là định nghĩa của propensity score. 
+
+$$
+\begin{split}
+VP = \P[T_i=1|e(\bf{X}_i)] &\stackrel{(1)}{=} \E[T_i=1|e(\bf{X}_i)] \\
+&\stackrel{(2)}{=} \E\big[\E\big(T_i=1|e(\bf{X}_i),\bf{X}_i\big)|e(\bf{X}_i)\big] \\
+&\stackrel{(3)}{=} \E[e(\bf{X}_i)|e(\bf{X}_i)]\\
+&= e(\bf{X}_i)
+\end{split}
+$$
+
+- (1): $T_i$ là một phân bố nhị phân, và nếu $X \sim Bin(1,p)$, ta có $\E(X) = p$.
+- (2): sử dụng công thức $\E(X) = \E[\E(X|Y)]$.
+- (3): expectation bên trong ngoặc vuông chính là định nghĩa của propensity score
+
+Tiếp theo ta sẽ chứng minh \@ref(eq:6):
+
+::::{.scroll-w }
+$$
+\begin{split}
+\P[T_i =1|Y_i(0),Y_i(1),e(\bf{X}_i)] &\stackrel{(1)}{=} \E[T_i =1|Y_i(0),Y_i(1),e(\bf{X}_i)] \\
+&\stackrel{(2)}{=} \E\big[\E\big(T_i|Y_i(0),Y_i(1),\bf{X}_i,e(\bf{X}_i)\big)|Y_i(0),Y_i(1),e(\bf{X}_i)\big]\\
+&\stackrel{(3)}{=}\E\big[\E\big(T_i|\bf{X}_i,e(\bf{X}_i)\big)|Y_i(0),Y_i(1),e(\bf{X}_i)\big] \\
+&\stackrel{(4)}{=} \E\big[\E\big(T_i|e(\bf{X}_i))|Y_i(0),Y_i(1),e(\bf{X}_i) \big] \\
+&\stackrel{(5)}{=} \E\big(T_i|e(\bf{X}_i)\big)\E\big[1|Y_i(0),Y_i(1),e(\bf{X}_i)\big] \\
+&=  \E\big(T_i|e(\bf{X}_i)\big) \\
+&= \P[T_i=1|e(\bf{X}_i)]
+\end{split}
+$$
+::::
+
+- (1): treatment $T$ thuộc Bernoulli với tham số $p = \P(T=1)$, nhớ rằng nếu $X\sim \mathcal{Ber}(p) \Rightarrow \P(X=1) = \E(X)$.
+- (2): sử dụng công thức total expectation: $\E(X) = \E[\E(X|Y)]$.
+- (3): sử dụng quy ước confoundedness
+- (4): sử dụng kết quả chứng minh ở bước 1.
+- (5): vì $\E(X|X=x) =x$
+::::
+
+# Suy luận nhân quả dựa trên Propensity score (PS)
+
+Phương trình \@ref(eq:5) là nền tảng để ta có thể áp dụng PS trong suy luận nhân quả, nó cho phép 2 treatments có thể so sánh trực tiếp dưới một tập PS. Có nhiều cách sữ dụng PS nhằm làm giảm độ lệch của 2 nhóm treatments, ta sẽ lần lượt làm quen với từng phương pháp. 
+
+## Cân bằng hai nhóm điều trị dựa vào Propensity score
+
+Trong rất nhiều nghiên cứu sử dụng observational data, ta thường gặp số bệnh nhân thuộc nhóm điều trị (nhóm active) ít hơn rất nhiều so với nhóm không được điều trị (nhóm control). Một ví dụ điển hình là một nhà vật lý trị liệu có một data từ bệnh viện, trong tập data này ghi nhận những bệnh nhân được điều trị bệnh nhưng lại không có bất kỳ số liệu nào của những người thuộc nhóm control. Trong trường hợp này, họ thường tìm kiếm các bệnh nhân thuộc nhóm control từ một khảo sát với quy mô lớn. Trong trường hợp mà nhóm các bệnh nhân control nhiều hơn nhóm active rất nhiều thì ta có thể chọn ứng viên trong nhóm control cho từng bệnh nhân trong nhóm điều trị. quá trình này được thực hiện qua 4 bước [@stu2010] như sau 
+
+1. chọn đại lượng để tính khoảng cách giữa các units. 
+2. sau khi đã xác định được đại lượng khoảng cách, tiến hành matching 
+3. đánh giá kết quả, bước 1-2 có thể thực hiện lại nhiều lần để tìm kết quả tốt nhất
+4. tiến hành phân tích outcomes and estimate hiệu quả của treatments
+
+Bước (1) chia làm 2 bước nhỏ hơn là chọn biến pretreatments và liên kết các biến được chọn thành 1 đại lượng duy nhất. Tại sao phải chọn pretreatments? trong nhiều trường hợp data được sử dụng chứa nhiều biến pretreatments hơn số units, như vậy ta không thể chọn tất cả các biến đó, mà chỉ chọn những biết thật sự quan trọng. Có nhiều tài liệu bàn luận về phương pháp chọn biến, nhưng nhìn chung vẫn chưa đưa ra được một phương pháp nào thuyết phục, và những phương pháp đó có thể cho ra những kết quả rất khác nhau. Bên cạnh đó, việc chọn biến phù hợp để phân tích còn phụ thuộc rất nhiều vào kiến thức nền của người nghiên cứu, ta không thể chỉ dựa vào các hypothesis tests đơn thuần để kết luận. Tuy nhiên ta cũng nói sơ qua về phương pháp _stepwise_ được đề cập bởi @vij2015. Trong tài liệu này, tác giả đã đưa ra 3 bước tiến hành chọn biến, thứ nhất là chọn ra các biến quan trọng dựa vào kiến thức chuyên ngành của người nghiên cứu. Bước 2, sử dụng stepwise để chọn ra những biến còn lại trong số các biến chưa được chọn dựa vào đại lượng likelihood ratio và hypothesis test. Bước 3, sau khi các biến bậc 1 đã được chọn ta tiếp tục chọn ra biến bậc 2 và biến tương tác, phương pháp vẫn như bước 2. Quá trình này được thực hiện đến khi tìm ra được tập biến phù hợp. Tuy vậy @stu2010 cũng đã khẳng định trong bài báo là phương pháp stepwise không thật sự hữu ích vì trong khi mục tiêu của ta là tìm ra PS sao cho phân bố của các confounders giữa 2 nhóm điều trị tương tự nhau, thì phương pháp stepwise lại dựa trên treatments. Tìm hiểu chi tiết tại @vij2015 và @stu2010.
+
+Bước (2) ta xác định đại lượng để tính khoảng cách giữa các units, nói cách khác là mức độ giống nhau của 2 units. Theo @stu2010 thì có bốn phương pháp căn bản để định nghĩa khoảng cách $D_{ij}$ giữa bệnh nhân $i$ và bệnh nhân $j$ là 
+
+1. Exact: 
+$$
+D_{ij} = \cases{0, \text{ if } X_i = X_j\\
+\infty, \text{ if } X_i \ne X_j
+}
+$$
+2. Mahalanobis: 
+$$
+D_{ij} = (X_i-X_j)^{\top}\Sigma^{-1}(X_i - X_j)
+$$
+trong đó, $\Sigma$ chính là covariance matrix của $X$. 
+3. Propensity score :
+$$
+D_{ij} = |e_i-e_j|
+$$
+trong đó $e_k$ chính là PS của bệnh nhân thứ $k$. 
+4. Linear PS:
+$$
+D_{ij} = |logit(e_i) - logit(e_j)|
+$$
+
+Tuy nhiên ta chỉ tập trung vào 2 phương pháp cuối vì nó liên quan tới PS. Đôi khi ta có thể kết hợp giữa phương pháp số (2) và số (3), như vậy ta có
+$$
+D_{ij} \cases{(Z_i-Z_j)^{\top}\Sigma^{-1}(Z_i-Z_j), \text{ if } |logit(e_i)-logit(e_j)|\le c\\
+\infty, \text{ if } |logit(e_i)-logit(e_j)| > c
+}
+$$
+trong đó $c$ gọi là caliper và $Z$ là tập hợp các biến pretreatment quan trọng. 
+
+Sau khi đã có tập biến pretreatment, ta tiến hành estimate propensity score. Bởi vì theo định nghĩa thì propensity score chính là xác suất được xếp vào nhóm treatment dưới một điều kiện cho trước của confounders $\P[T=1|X]$. Ta cũng biết rằng $T \sim \mathcal{Ber}(p)$, nên tất cả các models được sử dụng với cho outcome dưới định dạng nhị phân (binary) đều có thể sử dụng, phổ biến nhất là logistic. Lưu ý rằng khi ta xây dựng logistic model, mục tiêu của ta không phải suy luận về outcomes mà để xác định propensity score , vì thế vấn đề ta quan tâm không nằm ở các parameters của model mà là các biến pretreatment có cân bằng hay không. 
+
+Tiếp theo là ta bắt đầu matching sau khi đã xác định được các PS. Cũng có rất nhiều các phương pháp để matching, ta sẽ khái quát các phương pháp được đề cập trong một số tài liệu và sau đó là đi sâu vào 1 phương pháp đang được sử dụng rộng rãi. 
+
+### Matching với đơn vị gần nhất
+
+Được biết như là phương pháp _matching đơn vị gần nhất $k:1$_, dạng đơn giản nhất của loại matching này là matching $1:1$, nghĩa là mỗi một đơn vị trong nhóm treatment sẽ được match với một đơn vị trong nhóm control. Một vấn đề có thể phát sinh là bởi vì có quá nhiều đơn vị trong nhóm control bị loại bỏ (vì PS của nó quá xa với các đơn vị trong nhóm active), nên sẽ làm giảm độ tin cậy khi phân tích. Tuy nhiên việc giảm độ tin cậy này chiếm tỉ lệ rất nhỏ vì 2 lý do. Thứ nhất, Trong so sánh giá trị mean của 2 samples, thì độ tin cậy khi phân tích được quyết định phần nhiều bởi sample có kích cỡ nhỏ hơn. Vì thế một khi kích cỡ nhóm active không đổi thì sẽ không có quá nhiều thông tin bị mất. Thứ hai, một khi 2 nhóm treatments tương đồng nhau thì độ tin cậy sẽ tăng. 
+
+### Subclassification, Full matching và Weighting 
+
+Ba phương pháp này cò 1 đặc tính vượt trội hơn so với phương pháp trước đó là ta có thể sử dụng tất cả các units có trong data mà không phải loại bỏ đi bất cứ units nào nếu như đại lượng khoảng cách không thỏa mãn.
+
+#### Subclassification
+
+Như đã trình bày ở trên, vì phương pháp PS matching chỉ chọn một phần của các units nằm trong nhóm control, ta có quyền nghi ngờ về độ tin cậy trong phân tích. Vì thế, để hạn chế điều này ta có thể sử dụng phương pháp subclassification hay còn gọi là stratification. Như vậy các units sẽ được phân cụm dựa trên giá trị PS tương ứng. Ví dụ ta ký hiệu $0 = c_0 < c_1 < \dots <c_m =1$ đại diện cho $m$ cụm tương ứng với $m$ khoảng trên vector các giá trị PS, như thế nhóm thứ $k$ sẽ bao gồm các units mà giá trị PS tương ứng của nó nằm trong khoảng $I_k = (c_{k-1},c_k]$. Như vậy trong mỗi một nhóm ta có thể tính được hiệu quả điều trị của treatments là $\E[Y_{i|1} - Y_{i|0}|e_i = e]$, bởi vì đại lượng này phụ thuộc trên $e$, ta có thể xem là một hàm số của $e$. Theo lý thuyết ta cũng có 
+
+$$
+\E[Y_{i|j}|e_i \in I_k] \approx \E[Y_{i|j}|T_i=j,e_i \in I_k]
+$$
+với $k = 1,2,\dots,m; j = 1,2$.
+
+Như vậy, trong mỗi một cụm tương ứng với khoảng $I_k$, ta có thể tính được 
+
+$$
+\hat{\E}(Y_{i|1}|e_i \in I_k) = 
+\frac{\sum_{e_i\in I_k,T_i=1}Y_{i|1}}{n_{k|1}}; ~~~~
+\hat{\E}(Y_{i|0}|e_i \in I_k) =  \frac{\sum_{e_i\in I_k,T_i=0}Y_{i|0}}{n_{k|0}}
+$$
+trong đó $n_{k|1}$ và $n_{k|0}$ lần lượt là kích cỡ mẫu của 2 nhóm điều trị trong cụm $k$. Như vậy ta có thể đánh giá được kỳ vọng hiệu quả điều trị là 
+
+$$
+\hat{\E}[Y_{i|1}|e_i \in I_k] - \hat{\E}[Y_{i|0}|e_i \in I_k]
+(\#eq:7)
+$$
+
+Vì ta có tất cả là $m$ cụm được chia theo $m$ khoảng của PS, ta có thể tính tổng hợp hiệu quả điều trị qua các cụm là 
+
+$$
+\sum_{k=1}^m\Big[\E(Y_{i|1}|e_i\in I_k) - \E(Y_{i_0}|e_i\in I_k)  \Big]\P(e_i \in I_k)
+$$
+
+với 
+$$
+\P(e \in I_k) = \frac{n_{k|1}+n_{k|0}}{n}
+$$ 
+trong đó $n$ là kích cỡ mẫu.
+
+:::: {.blackbox .mathematics data-latex=""}
+::: {.center data-latex=""}
+a little mathy!!! (có thể bỏ)
+:::
+Ta có thể viết phương trình trên ở dạng tổng quát, nghĩa là ta có tất cả $n$ giá trị $e$ và $n \rightarrow \infty$. Nghĩa là từ \@ref(eq:7) ta suy ra 
+$$
+\int \Big[\E(Y_{i|1}|e_i=e) -  \E(Y_{i|0}|e_i=e)\Big]f(e)de
+$$
+trong đó
+
+:::: {.scroll-w}
+$$\int_{c_{k-1}}^{c_k}\E(Y_{i|j}|e_i=e)f(e)de = \E(Y_{i|j}|e_i \in I_k)\int_{c_{k-1}}^{c_k}f(e)de = \E(Y_{i|j}|e_i \in I_k)\P(e_i \in I_k)$$
+::::
+::::
+
+Vấn đề còn lại là ta phải chia khoảng cho các giá trị của PS $e_i$, $i=1,2,\dots,n$ như thế nào cho phù hợp. Để đơn giản ta có thể chia thành $5-10$ cụm là phù hợp. Tuy nhiên đối với nhóm có kích cỡ nhỏ, ta có thể dựa vào phân vị của PS để chia cụm. 
+
+Ngoài ra, @vij2015 đã giới thiệu đến một phương pháp sử dụng máy để chạy thuật toán nhằm phân chia các cụm sao cho đạt kết quả tốt nhất. Bên cạnh đó tác giả cũng đề nghị ta kiểm tra tính độc lập giữa treatment và các biến pretretments trong mỗi một cụm, nghĩa là $T_i \indep X_i|e(x_i)$. Đây cũng chính là phương pháp _full matching_. Vì  những phương pháp kể trên ít được sử dụng nên ta chỉ nói sơ qua để ta có cái nhìn tổng quát về các phương pháp sử dụng PS trong suy luận nhân quả. Phương pháp sử dụng PS khá phổ biến hiện nay là phương pháp weighting, sẽ được tìm hiểu ở phần tiếp theo. 
+
+#### Phương pháp weighting 
+
+ chúng ta biết bằng mỗi một PS chính là xác suất bệnh nhân được xếp vào nhóm active, $e \in (0,1)$, như vậy nếu như PS của một bệnh nhân nào đó là $e = 0.1$ thì giá trị này cho ta biết có tất cả $1/e = 10$ bệnh nhân  thuộc nhóm active có điều kiện giống nhau. Tương tự, sẽ có tất cả $1/(1-0.1) =1.1$ bệnh nhân thuộc nhóm control có cùng điều kiện. Vì thế ta chỉ cần nhân giá trị cần tính cho $1/e$ hay $1/(1-e)$ tùy thuộc vào bệnh nhân đó nắm trong nhóm điều trị nào. $1/e$ và $1/(1-e)$ được gọi _inverse probability weighting (IPW)_, ta có thể biểu diễn IPW ở dạng tổng quát như sau 
+$$
+w_i  = \frac{T_i}{e_i} + \frac{1-T_i}{1-e_i}.
+$$
+đây cũng được gọi là ước lượng Horvitz-Thompson. Dưới quy ước _unconfoundedness_ ta có 
+
+$$
+\E\Big[\frac{T_iY_i}{e_i}\Big] = \E[Y_i(1)],~~~\text{and }~~~~ \E\Big[\frac{(1-T_i)Y_i}{1-e_i}\Big] = \E[Y_i(0)]
+(\#eq:8)
+$$
+
+:::: {.blackbox .mathematics data-latex=""}
+::: {.center data-latex=""}
+(có thể bỏ qua)
+:::
+**Chứng minh rằng:**
+$$
+\E\Big[\frac{T_iY_i}{e_i}\Big] = \E[Y_i(1)]
+(\#eq:9)
+$$
+Ta chỉ xem xét trường hợp khi $T_i=1$, vì khi $T_i=0$ thì \@ref(eq:8) sẽ bằng $0$. Ta có $\Big[\frac{Y_i}{e_i}\Big|T_i=1\Big] = \Big[\frac{Y_i(1)}{e_i}\Big|T_i=1\Big]$, nên
+$$
+\E\Big[\frac{T_iY_i}{e_i}\Big] = \E\Big[\frac{T_iY_i(1)}{e_i}\Big].
+(\#eq:10)
+$$
+
+Sử dụng _total of expectation_, ta có
+$$
+\E\Big[\frac{T_iY_i(1)}{e_i}\Big] = \E\Big[\E\Big(\frac{T_iY_i(1)}{e_i}\Big|X_i\Big)\Big]
+(\#eq:11)
+$$
+ta cũng biết rằng dưới điều kiện  của biến pretreatment $X$ thì can thiệp $T$ và kết quả $Y$ độc lập, vì thế $\E(TY) = \E(T)\E(Y)$, sử dụng tính độc lập này ta có 
+
+$$
+\E\Big[\frac{T_iY_i(1)}{e_i}\Big|X_i\Big] = \frac{\E(T_i|X_i)\E(Y_i(1)|X_i)}{e_i} = \frac{e_i\E(Y_i(1)|X_i)}{e_i} = \E(Y_i(1)|X_i)
+(\#eq:12)
+$$
+lưu ý $e_i = e(X_i)$ là một hàm của $X_i$, vì thế $\E(e(X_i)|X_i=x_i) = e(x_i)$. Như vậy từ \@ref(eq:11) và \@ref(eq:12) ta có \@ref(eq:9). Chứng minh tương tự cho trường hợp còn lại của \@ref(eq:8).
+::::
+
+Từ \@ref(eq:8) ta có thể ước lượng từ số mẫu như sau 
+
+$$
+\hat{\E}(Y_i(1)) = \frac{1}{n}\sum_{i=1}^n\frac{T_iY_{i|T}}{e_i}~~~ and ~~~ \hat{\E}(Y_i(0)) = \frac{1}{n}\sum_{i=1}^n\frac{(1-T_i)Y_{i|T}}{1- e_i}
+(\#eq:13)
+$$
+Như vậy ta có thể ước lượng được giá trị của đại lượng đại diện cho hiệu quả của hai nhóm bệnh nhân là $\hat{\tau} = \E[Y_i(1)] - \E[Y_0(0)]$ từ \@ref(eq:13). 
+
+Như đã nói, trong thực tế ta không biết được giá trị đúng của các $e_i$ nhưng ta có thể ước lượng chúng bằng cách fit những models mà biến outcome thuộc định dạng nhị phân (binary), ví dụ tiêu biểu là logistic model. Như vậy, sau khi đã tìm được ước lượng của $e_i$ là $\hat{e}_i$ ta sẽ sử dụng $\hat{e}_i$ trong công thức \@ref(eq:13) và sau đó tính $\hat{\tau} = \E[Y_i(1)] - \E[Y_0(0)]$. 
+
+Một điểm nữa cần nhắc tới, Nếu như cả biến kết quả $Y$ cũng là biến binary, thì ta sẽ có một số đại lượng thường được sử dụng để thể hiện tính hiệu quả của can thiệp. Ở trên ta nhắc tới $\tau = \E(Y(1) - Y(0))$, trong trường hợp nhị phân, thì công thức này được gọi là _risk difference_, ngoài ra có 2 đại lượng khác cũng được sử dụng phổ biến là _risk ratio_ và _odd ratio_. Ta sẽ có một bài riêng nói về các đại lượng phân tích này. Trong phạm vi bài này, nếu ta muốn đánh giá hiệu quả thông qua đại lượng odd ratio, ta sẽ fit model bằng công thức 
+
+$$
+Y_{i|T} = \alpha+\tau T_i +\epsilon_i
+$$
+model này được fit bằng weighted least squares. 
+
+# Kiểm Tra Độ Cân Bằng của PS
+
+Trước khi ước lượng $\{\hat{e}_i:i=1,2,\dots,n\}$ của PS được sử dụng trong quá trình phân tích thì ta cần có một đại lượng để đánh giá sự độ cân bằng của các confounders $\bf{X}$. Nói cách khác ta muốn xem xét độ khác biệt của các biến confounders sau khi sử dụng PS. Theo @aus2011 ta sử dụng đại lượng _standardized difference_ như bên dưới để đo độ khác biệt
+
+$$
+d = \frac{\bar{x}_1 - \bar{x}_0 }{\sqrt{\frac{s^2_1 + s^2_0}{2}}}
+(\#eq:14)
+$$
+sử dụng cho biến liên tục trong đó $\bar{x}_1, s^2_1$ và $\bar{x}_0,s^2_0$  lần lượt là weighted mean và weighted variance của 2 nhóm treatment và control. Và 
+
+$$
+d = \frac{\hat{p}_1 - \hat{p}_0}{\sqrt{\frac{\hat{p}_1(1-\hat{p}_1)+\hat{p}_0(1-\hat{p}_0)}{2}}}
+$$
+sử dụng cho biến rời rạc, trong đó $\hat{p}_1$ và $\hat{p}_0$ lần lượt là tỉ lệ của từng sự kiện của 1 biến confounders. Hai trị số này cũng được tính bằng weighted proportion. 
+
+Trong quá trình báo cáo, ta phải sử dụng 2 đại lượng để tính độ khác biệt của các biến confounders trước và sau khi sử dụng PS để thấy được sự thay đổi trong cấu trúc phân bố của từng confounders trong mỗi nhóm điều trị. Ta sẽ đề cập đến vấn đề này sâu hơn ở các phần sau. 
+
+# Ví dụ minh họa 
+
+Có 2 `R` packages được sử dụng khá phổ biến hiện nay đó đó `MatchIt` và `WeightIt`. Trong đó `MacthIt` cung cấp những phương pháp matching khó cổ điển đã được đề cặp như _exact_, _subclassification_, _nearest_, v.v... tài liệu tham khảo có thể tìm thấy bằng link này [MatchIt](https://cran.r-project.org/web/packages/MatchIt/MatchIt.pdf), và ví dụ minh hoạ có thể tìm thấy ở đây [Ví dụ minh hoạ cho MatchIt](https://sejdemyr.github.io/r-tutorials/statistics/tutorial8.html). 
+
+package `WeightIt` offers nhiều phương pháp mới hơn, trong đó phần ước lượng PS có thể thực hiện bằng nhiều phương pháp trong machine learning. Trong khi `MatchIt` không cung cấp phương pháp weighting, thì `WeightIt` cung cấp khá đầy đủ các hàm để thực hiện  phương pháp weighting. Bạn đọc có thể tìm hiểu tại đây [WeightIt](https://cran.r-project.org/web/packages/WeightIt/WeightIt.pdf), ví dụ minh hoạ tại đây [Ví dụ minh hoạ cho WeightIt](https://cran.r-project.org/web/packages/WeightIt/vignettes/WeightIt.html). 
+
+Trong phần sau ta sẽ đi tìm hiểu kỹ hơn về package `WeightIt` cũng như một số phương pháp thuộc nhóm weighting bằng propensity score. Trong packages này, nhiều phương pháp weighting mang tính chất khái quát được đề cập, vì thế để sử dụng ta cần hiểu một vài khái niệm căn bản dựa trên @li2017.
+
+<!-- ################################################################################################### -->
+<!-- :::: {.blackbox data-latex=""} -->
+<!-- ::: {.center data-latex=""} -->
+<!-- **Proof:** -->
+<!-- ::: -->
+<!-- over here -->
+<!-- :::: -->
+# 📝 _**References**_ {-}

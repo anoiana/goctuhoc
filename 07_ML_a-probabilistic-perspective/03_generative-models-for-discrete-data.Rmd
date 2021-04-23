@@ -1,0 +1,114 @@
+---
+title: "Mô Hình Cho Data Rời Rạc"
+author: 👦🏻 $\mathcal{An}$
+date: "&#x1F4C5; _`r {
+if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
+update=FALSE
+filename=knitr::current_input(dir = FALSE)
+mylist <- readRDS(file ='date_list.rds')
+if(update|!(filename%in%names(mylist))){
+mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
+saveRDS(mylist, file = 'date_list.rds')}
+readRDS(file ='date_list.rds')[[filename]]  }`_"
+abstract: |
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: ["../00_supp/header.html"]
+        before_body: "before_body.html"
+        after_body: "../00_supp/mycomment.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+---
+
+```{=tex}
+\def\emp{\varnothing}
+\usepackage{extarrows}
+```
+
+
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 200px;
+  margin: 2.75em 20px 40px 20px;
+  background-image: url("machine-learning.jpg");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+::: {.watermark}
+*DRAFT*
+:::
+
+```{r child="../00_supp/general_rmd.Rmd"}
+```
+
+
+
+
+`r rs('_[Tham khảo tại @mur2012]_')`
+
+## Giới thiệu
+
+::: {.blackbox}
+Giả sử ta có một data bao gồm các $(y_i,\bf{x}_i)_{i=1}^n$, trong đó $y \in \{0,1\}$ là biến target nhị phân còn $\bf{x}$ là tập hợp các biến feature của observation $i$. Mục tiêu của ta là từ một $\bf{x}_i$ cho trước ta sẽ xếp obs. này vào một trong hai nhóm nhị phân $0$ hoặc $1$. Một trong những phương pháp giúp giải quyết bài toán phân loại này chính là sử dụng model Bayes. Ta sẽ nhắc lại công thức của Bayes như sau
+$$
+p(y=c|\bf{x},\bf{\theta}) \propto p(\bf{x}|y=c,\bf{\theta})p(y=c|\bf{\theta}).
+(\#eq:eq1)
+$$
+
+Để sử dụng model Bayes như trên ta cần xác định hình dạng của $p(\bf{x}|y=c,\bf{\theta})$. Có nghĩa là ta phải xác định được trong mỗi một phân nhóm $c$, thì kiểu data ta mong muốn là gì.
+:::
+
+## Học Bayes
+
+Giả sử ta có một dãy số $\mathcal{D} = \{1,2,\dots,100\}$. Nếu như thông tin ta có là *"số $16$ là một số dương"*, nếu dựa vào thông tin này liệu ta có thể kết luận các số khác như $17,6,32,99$ cũng là số dương hay không? Bởi vì thông tin ta có được quá ít, nên có thể kết quả dự đoán sẽ có độ tin cậy rất thấp. Nếu như con số được dự đoán có điểm tương đồng với số $16$, thì khả năng dự đoán sẽ khả quan hơn. Nhưng tương đồng ở khía cạnh nào? ví dụ số $17$ có điểm tương đồng vì nó đứng gần với số $16$ hơn các số còn lại, hoặc là số $6$ thì có điểm tương đồng là nó trùng với chữ số cuối của số $16$. Ngoài ra số $32$ cũng có điểm tương đồng với $16$ vì cả hai số điều có thể viết dưới dạng lũy thừa cơ số 2 $(16=2^4, 32 = 2^5)$. Tuy nhiên số $99$ lại không có điểm chung với số $16$. Gọi $\tilde{x} \in \{1,\dots100\}$ là con số ta cần dự đoán, ta sẽ cần tính $p(\tilde{x}|\mathcal{D})$ chính là xác suất của $\tilde{x} \in C$, $C \in \{\text{dương, không dương}\}$, biết rằng $\mathcal{D}$. xác suất này được gọi là **posterior predictive distribution**. Như vậy để dự đoán một số $\tilde{x}$, ta cần xem xét độ giống nhau của nó với số $16$, và tùy thuộc vào khía cạnh tương đồng mà ta xem xét sẽ cho ra kết quả mà ta mong muốn. 
+
+Bây giờ ta lại được cung cấp thêm thông tin rằng các số $8,2,64$ cũng là các số dương. Như vậy ta có thể suy đoán rằng mối tương quan rất có thể là *"lũy thừa cơ số 2"*. Tuy nhiên nếu ta biết rằng $\mathcal{D} = \{16,23,19,20\}$ thì mối tương quan sẽ thuộc một nội dung khác chứ không là lũy thừa cơ số 2 nữa. 
+
+Để biểu hiện những đặc tính này trong một machine thì phương pháp cổ điển chính là giả sử sự tồn tại của một tập hợp $\mathcal{H}$ chứa các đặc tính tương đồng như số chẵn, số lẽ, tất cả các số từ 1 tới 100, lũy thừa cơ số 2, những số có số cuối là $j$ ($0 \le j\le 9$). Một tập hợp con của $\mathcal{H}$ chứa nhiều các đặc tính tương đồng với data $D$ nhất được gọi là **version space**. 
+
+Tuy nhiên ta cần biết rằng version space chỉ là một tập con của $\mathcal{H}$, nó không mang đầy đủ các thông tin, mà nó chỉ phản ánh thông tin từ data $D$. Quay ngược lại ví dụ ban đầu nếu ta quan sát $\mathcal{D} = \{16\}$, thì ta sẽ rất khó để dự đoán một số $\tilde x$ nào đó, nhưng nếu ta quan sát $\mathcal{D} = \{16,8,2,64\}$ thì ta sẽ rất dễ nghiêng về mối tương đồng "lũy thừa cơ số 2". Các thông tin về mối tương đồng này có thể dễ dàng được hiểu thông qua trường phái Bayes trong thống kê. 
+
+## Likelihood
+
+Quay lại ví dụ ở phần trước, nếu như ta quan sát được $\mathcal{D} = \{16,8,2,64\}$, tại sao ta lại chọn mối tương đồng $h_{hai}:=$"lũy thừa cơ số 2" mà không phải $h_{chẵn}:=$"số chẵn". Nếu như mối tương đồng thật sự của nó là $h_{chẵn}$ mà không phải $h_{hai}$ thì sao?
+
+Để đánh giá độ tin cậy của những mối tương đồng này so với data ta đã quan sát, ta sẽ tính xác suất của $N$ quan sát độc lập này như sau 
+$$
+p(\mathcal{D}|h) = \Big(\frac{1}{\text{size}(h)}\Big)^N =  \Big(\frac{1}{|h|}\Big)^N
+(\#eq:eq2)
+$$
+
+`r lb(eq2)` được gọi là **size principle**, nghĩa là giả thuyết nào gần với data nhất sẽ cho ra xác suất lớn nhất. Ví dụ như đối với $\mathcal{D} = \{16\}$ thì ta có $p(\mathcal{D}|h_{hai}) = 1/6$^[$2^k < 100 \Leftrightarrow k < 7$], còn $p(\mathcal{D}|h_{chẵn}) = 1/50$. Như vậy $p(\mathcal{D}|h_{hai}) > p(\mathcal{D}|h_{chẵn})$, và sau khi ta quan sát 4 dữ liệu ta có 
+$h_{hai} = (1/6)^{4} = 7.7\times 10^{-4}> h_{chẵn} = (1/50)^{4} = 1.6\times10^{-7}$. Rõ ràng tỉ lệ likelihood là $5000:1$ nghiêng về $h_{hai}$. 
+
+## Prior
+
+Ta quan sát được $\mathcal{D} = \{16,8,2,64\}$
+
+
+
+<!-- ################################################################################################### -->
+
+------------------------------------------------------------------------
+
+## 📝 *References* {.unnumbered}
+

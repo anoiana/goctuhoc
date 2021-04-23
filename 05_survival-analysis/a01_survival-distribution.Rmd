@@ -1,0 +1,196 @@
+---
+title: "&#128205; Quá trình Ngẫu Nhiên Trong Phân Tích Sống Sót"
+subtitle: |
+author: 👦🏻 _An_
+date: "&#x1F4C5; _`r {
+if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
+update=FALSE
+filename=knitr::current_input(dir = FALSE)
+mylist <- readRDS(file ='date_list.rds')
+if(update|!(filename%in%names(mylist))){
+mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
+saveRDS(mylist, file = 'date_list.rds')}
+readRDS(file ='date_list.rds')[[filename]]  }`_"
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: 72
+---
+
+\newcommand{\scr}[1]{\mathscr{#1}}
+
+```{css, echo = F}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 300px;
+  margin: 2.75em 15px 40px 15px;
+  background-image: url("km.png");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+```{r  child="../00_supp/general_rmd.Rmd"}
+```
+
+::: {.watermark}
+*DRAFT*
+:::
+
+<!-- ===================== START FROM HERE ========================== -->
+
+# Quá trình ngẫu nhiên trong cột thời gian rời rạc
+
+##  Đặc tính martingales trong cột thời gian rời rạc
+
+Ta có $M = \{M_0,M_1,\dots\}$ là quá trình ngẫu nhiên trong cột thời gian rời rạc. $M$ là một martingales khi 
+$$
+\E(M_n|M_0,M_1,\dots,M_{n-1}) = M_{n-1}, \quad n \ge 1
+(\#eq:eq1)
+$$
+Đặc tính này liên quan tới "fair game", nghĩa là dựa trên các thông tin ta có được sau khi quan sát $n-1$ trò chơi thì thông tin tăng lên mà ta kỳ vọng cho trò chơi tiếp theo sẽ không thay đổi. 
+
+Tạm gọi $\mathscr{F}_n$ là thông tin tích lũy đến thời điểm thứ $n$. Trong lý thuyết về tập hợp ta có thể xem $\{\mathscr{F}_n\}$ là một tập hợp, số lượng phần tử của tập hợp này sẽ tăng dần khi lần lượt đi qua các mốc thời gian (đi càng nhiều, chứng kiền càng nhiều, kiến thức càng nhiều). Ví dụ, ta ném 3 đồng xu thì ta biết trước có tất cả 8 trường hợp có thể xảy ra nhưng ta không biết cụ thể trường hợp nào, và ta cũng không biết trường hợp nào có nhiều khả năng hơn trường hợp nào. Nói cách khác tất cả các khả năng đều ngang bằng nhau, cũng có thể nói ta không có bất kỳ thông tin nào. 8 trường hợp đó là 
+$$
+M_0 = \{(HHH, HHT, HTH, HTT, THH,THT, TTH, TTT)\},
+$$
+ở giai đoạn đầu tiên này, ta không hề có bất kỳ thông tin gì ngoài việc ba đồng xu sẽ được ném lên. Tuy nhiên, sau khi 1 đồng xu được ném lên, ta biết rằng sẽ có 2 trường hợp có thể xảy ra, và ta sẽ có sự phân bố các phần tử như sau
+$$
+M_1 = \{(HHH, HHT, HTH, HTT), (THH,THT, TTH, TTT)\},
+$$
+sau khi đồng xu thứ 2 được ném ra, ta có sự phân bố như sau
+$$
+M_2 = \{(HHH, HHT),(HTH,HTT),(THH,THT), (TTH,TTT)\},
+$$
+cuối cùng sau khi đồng xu thứ 3 được ném ra ta sẽ biết được tất cả thông tin, và sự phân bố bây giờ là
+$$
+M_3 = \{(HHH), (HHT), (HTH), (HTT), (THH), (THT), (TTH), (TTT)\}.
+$$
+Sau mỗi một đồng xu được ném ra và quan sát ta lại có thêm thông tin, và sự phân nhóm của tập hợp ban đầu có sự thay đổi theo chiều hướng chi tiết hơn, cho đến khi cả 3 đồng xu được ném ra thì ta có đầy đủ thông tin để khẳng định kiểu hình của 3 đồng xu đó là gì. Một lưu ý ta cần nhớ là thông tin ta có sau mỗi một đồng xu được ném ra nhiều hơn và bao gồm các thông tin trước đó. Nghĩa là 
+$$
+\begin{aligned}
+&\mathscr{F}_0 = \{M_0, \emptyset\} \\
+&\mathscr{F}_1 = \{M_0, M_1, \emptyset\} \\
+&\mathscr{F}_2 = \{M_0, M_1, M_2, \emptyset\} \\
+&\mathscr{F}_3 = \{M_0, M_1, M_2, M_3, \emptyset\}
+\end{aligned}
+$$
+theo lý thuyết tập hợp ta có thể ký hiệu quá trình này là 
+$$
+\mathscr{F}_1 \subset \mathscr{F}_2 \subset \mathscr{F}_3.
+$$
+
+Như vậy ta nói rằng quá trình $M = \{M_0, M_1, M_2, \dots\}$ thích nghi với lịch sử $\{\mathscr{F}_n\}$. Và theo đó mỗi một biến ngẫu nhiên $M_1, \dots, M_n$ có thể tính toán (nghĩa là có thể tính ra xác suất cho mỗi trường hợp cụ thể). Lấy một ví dụ cụ thể là 
+$$
+\begin{aligned}
+\mathscr{F}_1 = \begin{bmatrix}\color{red}{(HHH, HHT, HTH, HTT, THH,THT, TTH, TTT)} \\ 
+\color{blue}{(HHH, HHT, HTH, HTT)}, \color{blue}{(THH,THT, TTH, TTT)}\\ 
+\color{green}{\emptyset}\end{bmatrix}
+\end{aligned}
+$$
+Như vậy, sau khi quan sát đồng xu đầu tiên được ném ra, ta có thể tính được xác suất của các trường hợp trong $\mathscr{F}_1$ bằng phương pháp đếm trong tập hợp mẹ $\Omega$ chứa 8 điểm giống nhau về các đặc tính định lượng. Nghĩa là mỗi 1 điểm đều có xác suất là $1/8$. Như vậy ta lần lượt tính được xác suất cả các trường hợp trên là (từ trên xuống, từ trái qua): $\{1, 1/2, 1/2,0\}$.
+
+::::{.blackbox .brainstorm}
+:::{.center}
+`r colorize("Tại sao ta cần nắm kiến thức trên?","tomato")`
+:::
+Liên hệ với phân tích sốt sót, ta thấy rằng cứ sau mỗi một bệnh nhân tử vong được ghi nhận, thì các giá trị của hàm sống sót, hàm nguy cơ,... đều thay đổi. Câu hỏi được đặc ra là liệu sau mỗi một ca tử vong ghi nhận được, thì ta có thể dự đoán gì về các ca tiếp theo? và liệu với các thông tin ta có cho tới thời điển hiện tại (tiền sự) thì sẽ trả lời được cho ta về điều gì trong những lần tới? 
+::::
+
+Như vậy `r lb(eq1)` có thể được viết lại là 
+$$
+\E(M_m|\mathscr{F}_n) = M_n, \quad \forall m \le n.
+(\#eq:eq2)
+$$
+Quá trình $M = \{M_0, M_1, M_2,\dots\}$ là một martingale tương ứng với tiền sự $\{\scr{F}_n\}$ nếu 
+$$
+\E(M_n|\scr{F}_{n-1}) = M_{n-1}, \quad \forall n \ge 1,
+(\#eq:eq3)
+$$
+phương trình trên có thể suy rộng ra và khái quát như phương trình sau
+$$
+\E(M_n|\scr{F}_m) = M_m. \quad \forall n>m
+(\#eq:eq4)
+$$
+
+Như vậy nếu như $M_0 =0$ (tại thời gian $t_0$ không có ca tử vong nào xảy ra), ta có 
+$$
+\E(M_n) = \E[\E(M_n|\scr{F}_0)] = \E(M_0) = 0. 
+(\#eq:eq5)
+$$
+
+như vậy martingale  sẽ có kỳ vọng là 0, gọi là một _"mean zero martingale"_, tương tự chúng ta cũng sẽ có
+
+$$
+Cov(M_m,M_n-M_m) = 0, \quad \forall n > m
+$$
+nghĩa là martingale có _uncorrelated increments_. 
+
+Từ `r lb(eq3)` ta sẽ có 
+
+$$
+\E(M_n - M_{n-1}|\scr{F}_{n-1}) = 0, \quad \forall n > 1
+(\#eq:eq6)
+$$
+$\Delta M_n = M_n-M_{n-1}$ gọi là hiệu martingale (martingale differences). 
+
+## Sự thay đổi của quá trình ngẫu nhiên
+
+Có 2 sự thay đổi mà ta cần quan tâm, cái thứ nhất gọi là _quá trình thay đổi có thể dự đoán_ được ký hiệu là $\langle M \rangle$ và được định nghĩa là tổng của phương sai có điều kiện 
+$$
+\langle M \rangle_n = \sum_{i=1}^n \E\{(M_i-M_{i-1}^2|\scr{F}_{i-1}\} = \sum_{i=1}^n\V(\Delta M_i|\scr{F}_{i-1})
+(\#eq:eq7)
+$$
+biết rằng $\langle M \rangle_0 = 0$. quá trình thay đổi thứ hai gọi là _quá trình thay đổi tùy ý_, ký hiệu $[M]$ và được định nghĩa như sau
+$$
+[M]_n = \sum_{i=1}^n (M_i-M_{i-1})^2 = \sum_{i=1}^n (\Delta M_i)^2, \quad n \ge 0
+$$
+biết rằng $[M]_0 = 0$. Ta có thể chứng minh được rằng 
+
+$$
+M^2 - \langle M \rangle \text{ chính là martingale có kỳ vọng bằng 0}
+(\#eq:eq9)
+$$
+
+$$
+M^2 - [M] \text{ chính là martingale có kỳ vọng bằng 0}
+(\#eq:eq10)
+$$
+
+
+ 
+
+
+
+
+
+
+
+
+
+<!-- ====================== END ====================================== -->
+
+<!-- # *References* {.unnumbered} -->
