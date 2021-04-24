@@ -5,6 +5,8 @@
 \newcommand{\hat}[1]{\widehat{#1}}
 \newcommand{\mm}[1]{\mathbb{#1}}
 \newcommand{\bar}[1]{\overline{#1}}
+\newcommand{\tp}[1]{{#1}^{\top}}
+
 \def\E{\Bbb{E}}
 \def\V{\Bbb{V}}
 \def\P{\Bbb{P}}

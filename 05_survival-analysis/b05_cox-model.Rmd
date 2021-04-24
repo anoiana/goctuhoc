@@ -1,0 +1,106 @@
+---
+params:
+  publish: TRUE
+  newdate: FALSE
+date: "&#x1F4C5; _`r {source('../00_supp/general_R.R'); newdate_func(params$newdate)}`_"
+title: "`r totitle('mô hình hồi quy nguy cơ tương đối (cox)')`"
+subtitle: |
+author: 👦🏻 _A.T_
+output: 
+    bookdown::html_document2:
+      fig_caption: yes
+      theme: default
+      highlight: tango
+      toc: true
+      toc_float: 
+        collapsed: false
+      toc_depth: 3
+      code_folding: hide
+      css: "../00_supp/style.css"
+      number_sections: true
+      includes:
+        in_header: "../00_supp/header.html"
+        before_body: "test.html"
+fontsize: 12pt
+bibliography: ["citation.bib"]
+csl: "../00_supp/apa.csl"
+link-citations: true
+editor_options: 
+  chunk_output_type: console
+  markdown: 
+    wrap: 72
+---
+
+```{css, echo = F, eval = FALSE}
+/*----------LOGO above TOC---------*/
+
+#TOC::before {
+  content: "";
+  display: block;
+  height: 250px;
+  margin: 2.75em 15px 40px 15px;
+  background-image: url("km.png");
+  background-size: contain;
+  background-position: center center;
+  background-repeat: no-repeat;
+}
+```
+
+```{r  child="../00_supp/general_rmd.Rmd"}
+```
+
+```{r results='hide'}
+publish_func(params$publish)
+```
+
+::: {.watermark}
+*DRAFT*
+:::
+<!-- ===================== START FROM HERE ========================== -->
+
+# GIỚI THIỆU 
+
+Gọi $x = \tp{(x_1,x_2, \dots)}$ là vector của các biến subgroup của một bệnh nhân trước hoặc tại thời điểm screening, $T$ là biến thời gian liên tục. _Mô hình nguy cơ tương đối_ hoặc _mô hình Cox_ được xác định thông qua mối quan hệ với hàm nguy cơ
+$$
+\begin{align}
+\lambda(t,x) &= \lim_{h\to 0^+}\frac{\P(t \le T < t+h|T \ge t,x)}{h} \\
+&= \lambda_0(t)r(t,x), \quad t >0
+\end{align}
+(\#eq:eq1)
+$$
+
+Trong đó, $\lambda_0(t)$ là hàm nguy cơ tại thời điểm quy chiếu (baseline hazard function), trên cơ bản ta sẽ thấy phần này sẽ bị triệt tiêu khi ta ước lượng nguy cơ tương đối của 2 nhóm vì thế nó k cần được định nghĩa theo một dạng xác định. $r(t,x)$ chính là hàm đại diện cho mối quan hệ giữa biến thời gian $t$ và biến subgroup $x$. $r(t,x)$ có nhiều hình thái khác nhau nhưng dạng thường được sử dụng chính là hàm exponential, $r(t,x) = \exp[\tp{Z(t)}\beta]$, ta sẽ có 
+$$
+\lambda(t,x) = \lambda_0(t)\exp[\tp{Z(t)}\beta],
+(\#eq:eq2)
+$$
+với $Z(t) = \tp{[Z_1(t),\dots,Z_2(t)]}$. Với ký hiệu như trong `r lb(eq2)` ta cho phép biến  supgroup phụ thuộc vào thời gian $t$ (nghĩa là với những mốc thời gian khác nhau, mỗi bệnh nhân sẽ có những thông tin khác nhau). hàm nguy cơ tại thời điểm quy chiếu $\lambda_0(t)$ tương ứng với $Z(t) = \tp{(0,\dots,0)} \quad \forall t$, và $\beta = \tp{(\beta_1,\dots,\beta_p)}$ là vector của các tham số hồi quy chưa biết. 
+
+Tương ứng với định nghĩa của hàm nguy cơ trong `r lb(eq2)`, ta sẽ có hàm sống sót là 
+$$
+S(t,x) = \P(T > t|x) = \exp\bigg\{\int_0^t \lambda_0(u)\exp[\tp{Z(u)}\beta]du\bigg\}
+(\#eq:eq3)
+$$
+lấy đạo hàm 2 vế của hàm số trên ta sẽ được
+$$
+f(t,x) = \lambda(t,x)S(t,x).
+(\#eq:eq4)
+$$
+
+Trường hợp đơn giản nhất được xem xét là $x$ sẽ là một biến nhị phân đại diện cho hai nhóm điều trị bằng đặc trị và giả dược. Ta cũng giả sử rằng biến $x$ sẽ hoàn toàn độc lập với thời gian, nghĩa là nếu một bệnh nhân được điều trị bằng đặc trị thì người đó sẽ sử dụng cùng một loại thuốc trong cả quá trình người đó tham gia nghiên cứu. Như vậy `r lb(eq2)` có thể được viết lại là $\lambda(t,x) = \lambda_0(t)\exp(x\beta), \quad x = 0,1$. Như vậy hàm nguy cơ trong hai nhóm điều trị sẽ tuân thủ theo giả thuyết _proportional hazard_ và $\beta$ chính là đại lượng đo sự hiệu quả của phương pháp điều trị. 
+
+Trong một số trường hợp, ta có thể cho phép biến subgroups bị ảnh hưởng theo thời gian, như vậy ta sẽ xem xét $Z_1(t) = x$ và $Z_2(t) = xt$. Mô hình trong `r lb(eq2)` được viết lại là
+$$
+\lambda(t,x) = \lambda_0(t)\exp[x\beta_1+(xt)\beta_2],
+$$
+trong đó $\beta_2$ đại diện cho đại lượng tương tác của biến subgroup và thời gian $t$. 
+
+
+
+
+
+
+
+<!-- ====================== END ====================================== -->
+
+<!-- # *References* {.unnumbered} -->
