@@ -1,16 +1,11 @@
 ---
-title: "&#128205; Phân Tích Sống Sót Trong Quần Thể Đồng Nhất"
+params:
+  publish: TRUE
+  newdate: FALSE
+date: "&#x1F4C5; _`r {source('../00_supp/general_R.R'); newdate_func(params$newdate)}`_"
+title: "`r totitle('Phân Tích Sống Sót Trong Quần Thể Đồng Nhất')`"
 subtitle: "(Phương pháp phi tham số)"
 author: 👦🏻 _A.T_
-date: "&#x1F4C5; _`r {
-if(!file.exists('date_list.rds')){saveRDS(list(), file = 'date_list.rds')}
-update=FALSE
-filename=knitr::current_input(dir = FALSE)
-mylist <- readRDS(file ='date_list.rds')
-if(update|!(filename%in%names(mylist))){
-mylist[[filename]]<- format(Sys.Date(),format = '%d-%m-%Y')
-saveRDS(mylist, file = 'date_list.rds')}
-readRDS(file ='date_list.rds')[[filename]]  }`_"
 output: 
     bookdown::html_document2:
       fig_caption: yes
@@ -30,8 +25,6 @@ fontsize: 12pt
 bibliography: ["citation.bib"]
 csl: "../00_supp/apa.csl"
 link-citations: true
-params:
-  publish: FALSE
 ---
 
 ```{css, echo = F}
@@ -52,14 +45,8 @@ params:
 ```{r  child="../00_supp/general_rmd.Rmd"}
 ```
 
-
-```{r, eval=params$publish, echo=FALSE, warning=FALSE, message=FALSE, results='hide'}
-file_name = stringr::str_replace(knitr::current_input(),"Rmd$","html")
-if(file.exists(paste0("../docs/",file_name))){
-  file.copy(file_name, "../docs", overwrite  = TRUE)
-} else{
-      file.copy(file_name, "../docs")
-  }
+```{r results='hide'}
+publish_func(params$publish)
 ```
 
 ::: {.watermark}
