@@ -2,7 +2,7 @@
 params:
   publish: TRUE
   newdate: FALSE
-date: "&#x1F4C5; _`r {source('../00_supp/general_R.R'); newdate_func(params$newdate)}`_"
+date: "&#x1F4C5; _`r {source('../00_supp/anh_functions.R'); newdate_func(params$newdate)}`_"
 title: "`r totitle('mô hình hồi quy nguy cơ tương đối (cox)')`"
 subtitle: |
 author: 👦🏻 _A.T_
